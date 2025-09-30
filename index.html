@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>GeoRoadScan - Καταγραφή Φθορών</title>
+
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <link rel="apple-touch-icon" href="icons/icon-192.png"/>
+  <meta name="theme-color" content="#0f172a"/>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="app.css"/>
+
+  <!-- runtime toggle for marker labels -->
+  <style id="no-marker-labels"></style>
+
+  <!-- Util κλάσεις για τον sign picker -->
+  <style>
+    .chip{border:1px solid #cbd5e1;border-radius:999px;background:#fff;padding:6px 12px;cursor:pointer}
+    .chip.is-active{background:#0ea5e9;color:#fff;border-color:#0ea5e9}
+    .sign-thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;max-height:40vh;overflow:auto}
+    .sign-thumb{border:1px solid #e5e7eb;border-radius:10px;background:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px}
+    .sign-thumb img{width:56px;height:56px;object-fit:contain}
+    .sign-thumb .code{font-size:11px;text-align:center}
+    .sign-thumb.is-selected{outline:2px solid #3b82f6}
+  </style>
+
+  <script id="signCatalogJSON" type="application/json">
+{
+  "ρυθμιστικές": [
+    "Π-01","Π-15","Π-17","Π-18","Π-31","Π-75","Π-77","Π-78","Π-79",
+    "Ρ-1","Ρ-10","Ρ-11","Ρ-15","Ρ-2","Ρ-21","Ρ-22","Ρ-23","Ρ-25","Ρ-27",
+    "Ρ-28","Ρ-29","Ρ-3","Ρ-30","Ρ-32_50","Ρ-36","Ρ-37","Ρ-38","Ρ-39",
+    "Ρ-4","Ρ-40","Ρ-45","Ρ-46","Ρ-47","Ρ-48","Ρ-49","Ρ-5","Ρ-50",
+    "Ρ-50α","Ρ-50δ","Ρ-51α","Ρ-51δ","Ρ-52","Ρ-52α","Ρ-52δ","Ρ-6","Ρ-7","Ρ-8","Ρ-9",
+    "Κ-33","Κ-36"
+  ],
+  "κινδύνου": [
+    "Κ-10","Κ-11","Κ-12","Κ-14α","Κ-14δ","Κ-15","Κ-16","Κ-17","Κ-18","Κ-19",
+    "Κ-1α","Κ-1δ","Κ-20","Κ-21","Κ-24","Κ-25","Κ-27","Κ-28α","Κ-28δ",
+    "Κ-29α","Κ-29δ","Κ-2α","Κ-2δ","Κ-31","Κ-32",
+    "Κ-5","Κ-6α","Κ-6δ","Κ-8","Κ-9"
+  ]
+}
+</script>
+
+
+</head>
+<body>
+
+  <div id="map"></div>
+  <video id="cameraPreview" autoplay muted playsinline
+         style="display:none; position:fixed; z-index:1300; width:340px; height:250px; top:80px; left:50%; transform:translateX(-50%); border:3px solid var(--brand2); background:#000;"></video>
+  <canvas id="snapshotCanvas" style="display:none;"></canvas>
+
+  <!-- ΠΑΝΩ ΚΟΥΜΠΙΑ -->
+  <div class="top-buttons">
+    <div class="row">
+      <button id="btnToggleBottom" class="btn btn--icon" type="button" title="...">⬆️</button>
+      <button id="btnRedo" class="btn btn--icon" type="button" title="Redo">↪️</button>
+      <button id="btnUndo" class="btn btn--icon" type="button" title="Undo">↩️</button>
+      <button id="btnLocate" class="btn btn--icon" type="button" title="Εντοπισμός">🛰️</button>
+      <button id="btnLayers" class="btn btn--icon" type="button" title="Επίπεδα χάρτη">🗺️</button>
+      <button id="btnData" class="btn btn--icon" type="button" title="Exports / Imports">📦</button>
+      <button id="btnMarkerSettings" class="btn btn--icon" type="button" title="Ρυθμίσεις Markers">⚙️</button>
+    </div>
+  </div>
+
+  <!-- ===================== DATA MENU (Exports / Imports) ===================== -->
+  <div id="dataMenu" class="data-menu" role="dialog" aria-modal="true">
+    <div class="data-section">Εξαγωγές</div>
+    <div class="data-row">
+      <button id="expExcel" class="data-item"><span class="emoji">📊</span>Excel</button>
+      <button id="expKML" class="data-item"><span class="emoji">🌍</span>KML</button>
+      <button id="expGeoJSON" class="data-item"><span class="emoji">🧩</span>GeoJSON</button>
+      <button id="expCSV" class="data-item"><span class="emoji">🧾</span>CSV</button>
+      <button id="expKMZ" class="data-item"><span class="emoji">🗜️</span>KMZ</button>
+    </div>
+    <div class="data-section">Εισαγωγές</div>
+    <div class="data-row">
+      <label class="data-item" for="impExcel"><span class="emoji">📥</span>Από Excel</label>
+      <input id="impExcel" class="hidden-input" type="file" accept=".xlsx,.xls"/>
+      <label class="data-item" for="impKML"><span class="emoji">📥</span>Από KML</label>
+      <input id="impKML" class="hidden-input" type="file" accept=".kml"/>
+      <label class="data-item" for="impKMZ"><span class="emoji">📥</span>Από KMZ</label>
+      <input id="impKMZ" class="hidden-input" type="file" accept=".kmz"/>
+      <label class="data-item" for="impGeoJSON"><span class="emoji">📥</span>Από GeoJSON</label>
+      <input id="impGeoJSON" class="hidden-input" type="file" accept=".geojson,.json"/>
+      <label class="data-item" for="impCSV"><span class="emoji">📥</span>Από CSV</label>
+      <input id="impCSV" class="hidden-input" type="file" accept=".csv"/>
+    </div>
+  </div>
+
+  <!-- ===================== LAYER POPUP ===================== -->
+  <div id="layerPopup" class="layer-popup" role="dialog" aria-modal="true">
+    <div class="layer-header">
+      <div class="layer-title">Επίπεδα χάρτη</div>
+      <div class="layer-actions">
+        <button id="presetOSM" class="btn-icon" title="Προεπιλογή: OSM">OSM</button>
+        <button id="presetSAT" class="btn-icon" title="Προεπιλογή: Δορυφορικός">🛰️</button>
+        <button id="btnLayersClose" class="btn-icon" title="Κλείσιμο">✖️</button>
+      </div>
+    </div>
+    <div class="preset-row">
+      <button id="btnPresetStreet" class="preset-btn">Street (OSM)</button>
+      <button id="btnPresetSat" class="preset-btn">Satellite + Labels</button>
+    </div>
+    <div class="layer-list">
+      <div class="layer-item">
+        <div class="layer-name">OpenStreetMap</div>
+        <label class="switch">
+          <input id="layerOSM" type="checkbox" checked/>
+          <span class="track"></span><span class="thumb"></span>
+        </label>
+        <div class="layer-sub">Βασικός οδικός χάρτης από την κοινότητα</div>
+      </div>
+
+      <div class="layer-item">
+        <div class="layer-name">Esri World Imagery</div>
+        <label class="switch">
+          <input id="layerEsriImg" type="checkbox"/>
+          <span class="track"></span><span class="thumb"></span>
+        </label>
+        <div class="row-inline">
+          <span class="mono">Opacity</span>
+          <input id="opacityEsriImg" class="slider" type="range" min="20" max="100" value="100"/>
+        </div>
+        <div class="layer-sub">Δορυφορική απεικόνιση υψηλής ανάλυσης</div>
+      </div>
+
+      <div class="layer-item">
+        <div class="layer-name">Street Labels</div>
+        <label class="switch">
+          <input id="layerEsriLabels" type="checkbox"/>
+          <span class="track"></span><span class="thumb"></span>
+        </label>
+        <div class="row-inline">
+          <span class="mono">Opacity</span>
+          <input id="opacityEsriLabels" class="slider" type="range" min="10" max="100" value="100"/>
+        </div>
+        <div class="layer-sub">Ονόματα δρόμων/αναγραφές πάνω από imagery</div>
+      </div>
+
+      <div class="layer-item">
+        <div class="layer-name">NASA True Color <span id="badgeTrue" class="badge">daily</span></div>
+        <label class="switch">
+          <input id="layerNasaTrue" type="checkbox"/>
+          <span class="track"></span><span class="thumb"></span>
+        </label>
+        <div class="row-inline">
+          <button id="btnRefreshTrue" class="btn-mini">↻ Ανανέωση</button>
+          <span id="trueDate" class="mono"></span>
+        </div>
+        <div class="layer-sub">MODIS Terra της πιο πρόσφατης ημέρας</div>
+      </div>
+
+      <div class="layer-item">
+        <div class="layer-name">OpenTopoMap</div>
+        <label class="switch">
+          <input id="layerOpenTopo" type="checkbox"/>
+          <span class="track"></span><span class="thumb"></span>
+        </label>
+        <div class="layer-sub">Τοπογραφικό υπόβαθρο με ισοϋψείς</div>
+      </div>
+
+      <div class="layer-item">
+        <div class="layer-name">Esri World Topographic</div>
+        <label class="switch">
+          <input id="layerEsriTopo" type="checkbox"/>
+          <span class="track"></span><span class="thumb"></span>
+        </label>
+        <div class="layer-sub">Τεχνικός/θεματικός χάρτης</div>
+      </div>
+
+      <div class="layer-item">
+        <div class="layer-name">Esri Hillshade</div>
+        <label class="switch">
+          <input id="layerHillshade" type="checkbox"/>
+          <span class="track"></span><span class="thumb"></span>
+        </label>
+        <div class="row-inline">
+          <span class="mono">Opacity</span>
+          <input id="opacityHillshade" class="slider" type="range" min="10" max="100" value="70"/>
+        </div>
+        <div class="layer-sub">Σκιερογραφία ανάγλυφου (ρυθμιζόμενη διαφάνεια)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== MARKER SETTINGS POPUP ===================== -->
+  <div id="markerPopup" class="marker-popup" role="dialog" aria-modal="true">
+    <div class="marker-header">
+      <div class="marker-title">Ρυθμίσεις Markers</div>
+      <div class="marker-actions">
+        <button id="btnMarkerClose" class="btn-icon" title="Κλείσιμο">✖️</button>
+      </div>
+    </div>
+
+    <div class="marker-group">
+      <div class="marker-row">
+        <label for="markerShape">Σχήμα</label>
+        <select id="markerShape">
+          <option value="circle">Κύκλος</option>
+          <option value="square">Τετράγωνο</option>
+          <option value="pin">Pin</option>
+          <option value="emoji">Emoji</option>
+        </select>
+      </div>
+
+      <div class="marker-row">
+        <label for="markerSize">Μέγεθος</label>
+        <input id="markerSize" class="marker-slider" type="range" min="18" max="40" value="26"/>
+        <span id="markerSizeVal" class="mono">26 px</span>
+      </div>
+
+      <div class="marker-row">
+        <label for="markerOpacity">Διαφάνεια</label>
+        <input id="markerOpacity" class="marker-slider" type="range" min="40" max="100" value="100"/>
+        <span id="markerOpacityVal" class="mono">100%</span>
+      </div>
+
+      <div class="marker-group">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="mono" style="opacity:.9;">Προεπισκόπηση</div>
+          <button id="btnMarkerReset" class="btn-icon" title="Επαναφορά">↺</button>
+        </div>
+        <div id="markerPreviewBox" style="display:flex; align-items:center; gap:10px; padding:8px;">
+          <div id="markerPreviewIcon"></div>
+          <div class="mono" id="markerPreviewText" style="opacity:.85;">(δείγμα)</div>
+        </div>
+      </div>
+
+      <div class="marker-row">
+        <label for="labelMode">Ετικέτες</label>
+        <select id="labelMode">
+          <option value="off">Καθόλου</option>
+          <option value="hover">Με hover</option>
+          <option value="permanent">Μόνιμα</option>
+        </select>
+      </div>
+
+      <div class="marker-row">
+        <label for="allowDrag">Μετακίνηση marker</label>
+        <input id="allowDrag" type="checkbox"/>
+      </div>
+    </div>
+
+    <div class="marker-group">
+      <div class="mono" style="opacity:.9;">Κατηγορίες (φίλτρο προβολής)</div>
+      <div id="markerCatList" class="marker-cat-list"><!-- γεμίζει από JS --></div>
+    </div>
+
+    <div class="marker-group">
+      <div class="mono" style="opacity:.9;">Ομάδες (από εισαγωγή)</div>
+      <div id="markerGroupList" class="marker-cat-list"><!-- γεμίζει από JS --></div>
+    </div>
+
+    <!-- ΜΕΤΑΦΕΡΜΕΝΟ ΜΕΣΑ ΣΤΟ POPUP -->
+    <div class="marker-group">
+      <div class="mono" style="opacity:.9;">Κατάσταση (φίλτρο προβολής)</div>
+      <div id="markerStatusList" class="marker-cat-list">
+        <label class="marker-cat-pill" data-st="new">
+          <input type="checkbox" data-st="new" checked/> Νέα
+        </label>
+        <label class="marker-cat-pill" data-st="old">
+          <input type="checkbox" data-st="old" checked/> Υφιστάμενα
+        </label>
+        <label class="marker-cat-pill" data-st="done">
+          <input type="checkbox" data-st="done" checked/> Ολοκληρωμένα
+        </label>
+      </div>
+    </div>
+  </div>
+  <!-- ΤΕΛΟΣ markerPopup -->
+<!-- Modal: Όρισε όνομα -->
+<div id="customNameModal" class="marker-popup" role="dialog" aria-modal="true">
+  <div class="marker-header">
+    <div class="marker-title">Όρισε όνομα</div>
+    <div class="marker-actions">
+      <button class="btn-icon" type="button" onclick="closeCustomNameModal()">✖️</button>
+    </div>
+  </div>
+
+  <div class="marker-body" style="padding:10px;">
+    <input id="customNameInput" type="text" placeholder="π.χ. Γενικά Προβλήματα"
+           style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:#0b1220;color:#e5e7eb;" />
+    <div class="modal-buttons" style="margin-top:12px;display:flex;gap:8px;">
+  <button id="btnCustomNameSave" class="btn" type="button">Αποθήκευση</button>
+  <button id="btnCustomNameCancel" class="btn" type="button">Άκυρο</button>
+</div>
+
+  </div>
+</div>
+
+  <!-- Κάτω μπάρα (RESTORED) -->
+  <div class="bottom-buttons">
+    <button class="btn" data-cat="Πινακίδες" type="button"><span class="icon">🛑</span><span class="label">Πινακίδες</span></button>
+    <button class="btn" data-cat="Ασφαλτικά" type="button"><span class="icon">🛣️</span><span class="label">Ασφαλτικά</span></button>
+    <button class="btn" data-cat="Ρείθρα" type="button"><span class="icon">🧹</span><span class="label">Ρείθρα</span></button>
+    <button class="btn" data-cat="Βλάστηση" type="button"><span class="icon">🌿</span><span class="label">Βλάστηση</span></button>
+    <button class="btn" data-cat="Στηθαία" type="button"><span class="icon">🛡️</span><span class="label">Στηθαία</span></button>
+    <button class="btn" data-cat="Κιγκλιδώματα" type="button"><span class="icon">🚧</span><span class="label">Κιγκλιδώματα</span></button>
+    <button class="btn" data-cat="Διαγραμμίσεις" type="button"><span class="icon">➖</span><span class="label">Διαγραμμίσεις</span></button>
+    <button class="btn" data-cat="Δέντρα" type="button"><span class="icon">🌳</span><span class="label">Δέντρα</span></button>
+    <button class="btn" data-cat="Φωτιστικά" type="button"><span class="icon">💡</span><span class="label">Φωτιστικά</span></button>
+    <button class="btn" id="btnCustomCat" type="button"><span class="icon">❗</span><span class="label">Όρισε όνομα</span></button>
+  </div>
+
+  <!-- ===================== MODALS ===================== -->
+  <div id="undoModal" class="modal">
+    <div class="modal-content">
+      <h3>Επιβεβαίωση Undo</h3>
+      <p>Θέλετε να σβήσετε την τελευταία καταγραφή;</p>
+      <div class="modal-buttons">
+        <button id="btnUndoOk" class="btn">✅ Επιβεβαίωση</button>
+        <button id="btnUndoCancel" class="btn">❌ Άκυρο</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="directionModal" class="modal">
+    <div class="modal-content">
+      <h3>Κατεύθυνση διαδρομής</h3>
+      <input id="routeDirection" type="text" placeholder="π.χ. Αθήνα → Λαμία"/>
+      <div class="modal-buttons">
+        <button id="btnDirectionOk" class="btn">Επιβεβαίωση</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== DAMAGE MODAL ====== -->
+  <div id="damageModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="damageTitle" aria-describedby="damageSubtitle">
+    <div class="modal-content damage-modal damage-modal--compact" tabindex="-1">
+      <!-- Header -->
+      <header class="dm-header">
+        <h3 id="damageTitle">Καταγραφή Φθοράς</h3>
+        <p id="damageSubtitle" class="dm-subtitle">Συμπλήρωσε τα στοιχεία και πάτα Αποθήκευση <span id="dmCategory"></span></p>
+      </header>
+
+ <!-- Body -->
+<section class="dm-body">
+  <div class="dm-row">
+    <label class="dm-label" for="quantity">Ποσότητα</label>
+    <div class="dm-field">
+      <input id="quantity" type="number" inputmode="numeric" min="0" step="1" placeholder="π.χ. 1"/>
+    </div>
+    <div id="qtyPills" class="pill-group" hidden>
+      <button class="pill" type="button" data-val="1">1</button>
+      <button class="pill" type="button" data-val="2">2</button>
+      <button class="pill" type="button" data-val="3">3</button>
+      <button class="pill" type="button" data-val="4">4</button>
+      <button class="pill" type="button" data-val="5">5</button>
+    </div>
+  </div>
+
+  <!-- Ύψος (μόνο για κατηγορίες που το ζητάνε, π.χ. Δέντρα) -->
+  <div class="dm-row" id="dmRowHeight" style="display:none;">
+    <label class="dm-label" for="height">Ύψος</label>
+    <div class="dm-field">
+      <select id="height">
+        <option value="">—</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="dm-row">
+    <label class="dm-label" for="side">Πλευρά</label>
+    <div class="dm-field">
+      <input id="side" type="hidden"/>
+      <div id="sidePills" class="pill-group">
+        <button class="pill" type="button" data-val="Α">Α</button>
+        <button class="pill" type="button" data-val="Δ">Δ</button>
+        <button class="pill" type="button" data-val="Α/Δ">Α/Δ</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dm-row">
+    <label class="dm-label" for="priority">Προτεραιότητα</label>
+    <div class="dm-field">
+      <input id="priority" type="hidden"/>
+      <div id="priorityPills" class="pill-group">
+        <button class="pill" type="button" data-val="1">1</button>
+        <button class="pill" type="button" data-val="2">2</button>
+        <button class="pill" type="button" data-val="3">3</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Κωδικός Πινακίδας (με picker) -->
+  <div class="dm-row" id="dmRowSign" style="display:none;">
+    <label class="dm-label">Κωδ. Πινακίδας</label>
+    <div class="dm-field">
+      <!-- Κρυφό input για end-to-end ροή δεδομένων -->
+      <input id="signCode" type="hidden"/>
+      <!-- Κουμπί και panel επιλογέα πινακίδων -->
+      <div class="row-inline" style="gap:8px;">
+        <button id="btnPickSign" type="button" class="btn-small">Επιλογή…</button>
+        <small id="signSelectedPreview" class="dm-muted"></small>
+      </div>
+      <div id="signPickerPanel" style="display:none; position:relative; z-index:1300; margin-top:8px;">
+        <div style="border:1px solid #e5e7eb; border-radius:12px; background:#fff; padding:10px;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+            <span class="chip" data-group="ρυθμιστικές">Ρυθμιστικές</span>
+            <span class="chip" data-group="κινδύνου">Κινδύνου</span>
+            <input id="signSearch" type="text" placeholder="Αναζήτηση κωδικού (π.χ. Ρ-50)"
+                   style="flex:1; min-width:160px; border:1px solid #cbd5e1; border-radius:999px; padding:6px 10px;">
+          </div>
+          <div id="signThumbs" class="sign-thumbs"><!-- γεμίζει δυναμικά --></div>
+          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px;">
+            <button id="signClear" class="btn-small">Καθαρισμός</button>
+            <button id="signClose" class="btn-small">Κλείσιμο</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Περιγραφή -->
+  <div class="dm-row">
+    <label class="dm-label" for="description">Περιγραφή</label>
+    <div class="dm-field">
+      <textarea id="description" rows="3" placeholder="Σύντομη περιγραφή..."></textarea>
+      <div id="descPills" class="pill-group" style="margin-top:6px;">
+        <button class="pill" type="button" data-val="Με φθορά">Με φθορά</button>
+        <button class="pill" type="button" data-val="Βαμμένη">Βαμμένη</button>
+        <button class="pill" type="button" data-val="Κεκλιμένη">Κεκλιμένη</button>
+        <button class="pill" type="button" data-val="Γυρισμένη">Γυρισμένη</button>
+        <button class="pill" type="button" data-val="Πτώση">Πτώση</button>
+        <button class="pill" type="button" data-val="Στρέβλωση ιστού">Στρέβλωση ιστού</button>
+        <button class="pill" type="button" data-val="Στρέβλωση ιστού κ πινακίδας">Στρέβλωση ιστού κ πινακίδας</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dm-row">
+    <label class="dm-label" for="status">Κατάσταση</label>
+    <div class="dm-field">
+      <select id="status">
+        <option value="new">Νέα</option>
+        <option value="old">Υφιστάμενη</option>
+        <option value="done">Ολοκληρωμένη</option>
+      </select>
+      <!-- Τα pills της Κατάστασης δημιουργούνται runtime από το ui.js ως #statusPills -->
+    </div>
+  </div>
+
+  <div class="dm-row dm-row--photo">
+    <label class="dm-label">Φωτογραφία</label>
+    <div class="dm-field">
+      <button id="btnCamera" class="btn-secondary" type="button">Κάμερα</button>
+      <div id="photoPreview" class="dm-photos"></div>
+      <small id="noPhotoMsg" class="dm-muted">Δεν έχει επιλεγεί φωτογραφία.</small>
+    </div>
+  </div>
+</section>
+
+
+
+
+
+      <!-- Footer -->
+      <div class="modal-buttons">
+        <button id="btnDamageCancel" class="btn-secondary">Άκυρο</button>
+        <button id="btnDamageSave" class="btn-primary">Αποθήκευση</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="startModal" class="modal">
+    <div class="modal-content">
+      <h3>Έναρξη Εργασίας</h3>
+      <p>Θέλεις να ξεκινήσεις νέα εργασία ή να συνεχίσεις την προηγούμενη;</p>
+      <div class="modal-buttons">
+        <button id="btnNewWork" class="btn"><span class="icon">✏️</span><span class="label">Νέα Εργασία</span></button>
+        <button id="btnContinue" class="btn"><span class="icon">⏩</span><span class="label">Συνέχιση</span></button>
+      </div>
+    </div>
+  </div>
+
+  <footer>© 2025 Developed by D. Xanthopoulos · Civil Eng.</footer>
+
+  <!-- ===== Libs (όλα με defer) ===== -->
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <!-- ===== Εσωτερικά scripts (σωστή σειρά) ===== -->
+  <script defer src="core.js"></script>
+  <script defer src="ui.js"></script>
+  <script defer src="signpicker.js"></script>
+  <script defer src="exports.js"></script>
+</body>
+</html>

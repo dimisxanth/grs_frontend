@@ -1,0 +1,815 @@
+/* =====================================
+   APP.CSS — CLEAN CONSOLIDATED BUILD
+   ===================================== */
+
+/* ---------- Tokens ---------- */
+:root{
+  --bg:#0b1220;
+  --panel:#0f172a;
+  --panel-2:#111827;
+  --panel-3:#0b1020;
+  --text:#e5e7eb;
+  --muted:#94a3b8;
+  --brand1:#007cf0;
+  --brand2:#00dfd8;
+  --accent:#2563eb;
+  --danger:#ef4444;
+  --ok:#22c55e;
+  --border:rgba(255,255,255,0.12);
+  --glass:rgba(255,255,255,0.06);
+}
+
+/* ---------- Reset / base ---------- */
+*{box-sizing:border-box}
+html,body,#app{height:100%}
+body{
+  margin:0; font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
+  color:var(--text);
+  background:linear-gradient(180deg,#0b1220,#0a0f1e 45%, #0b1220);
+}
+
+/* ---------- Map ---------- */
+#map{ position:relative; width:100%; height:100%; }
+.leaflet-control-container{ z-index:500; }
+
+/* ---------- Top buttons (icon-only) ---------- */
+.top-buttons,.bottom-buttons{
+  position:absolute; left:0; right:0; padding:6px; z-index:1000; gap:6px;
+}
+.top-buttons{
+  top:0; display:flex; justify-content:center; align-items:center; gap:6px;
+  padding-top:calc(6px + env(safe-area-inset-top));
+}
+.top-buttons .row{ display:contents; }
+
+.btn{ appearance:none; border:0; cursor:pointer; user-select:none; }
+.btn--icon{
+  width:44px; height:44px; padding:0;
+  display:inline-flex; align-items:center; justify-content:center;
+  border-radius:12px; border:2px solid transparent;
+  background:#fff; box-shadow:0 4px 10px rgba(0,0,0,.10);
+  transition:transform .15s ease, box-shadow .15s ease, filter .15s ease, background-color .15s ease;
+  font-size:18px; line-height:1; user-select:none;
+}
+.top-buttons .btn--icon{ font-size:22px; color:#fff; text-shadow:0 1px 0 rgba(0,0,0,.25); }
+.btn--icon:hover{ transform:translateY(-1px); box-shadow:0 6px 16px rgba(0,0,0,.16); }
+.btn--icon:active{ transform:translateY(0); }
+.top-buttons .btn--icon:focus-visible{
+  outline:3px solid rgba(255,255,255,.9); outline-offset:2px;
+  box-shadow:0 0 0 3px rgba(0,0,0,.25), 0 6px 16px rgba(0,0,0,.18);
+}
+
+/* Per-button colors (according to IDs) */
+#btnRedo.btn--icon{ background:#3b82f6; }       /* blue-500 */
+#btnUndo.btn--icon{ background:#f59e0b; }       /* amber-500 */
+#btnLocate.btn--icon{ background:#06b6d4; }     /* cyan-500 */
+#btnLayers.btn--icon{ background:#64748b; }     /* slate-500 */
+#btnToggleBottom.btn--icon{ background:#9ca3af;}/* neutral */
+#btnRedo.btn--icon:hover{ background:#2563eb; }
+#btnUndo.btn--icon:hover{ background:#d97706; }
+#btnLocate.btn--icon:hover{ background:#0891b2; }
+#btnLayers.btn--icon:hover{ background:#475569; }
+#btnToggleBottom.btn--icon:hover{ background:#6b7280; }
+
+/* ---------- Bottom bar (grid 2xN) ---------- */
+.bottom-buttons{
+  bottom:0; display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-auto-rows:minmax(44px,auto);
+  gap:6px; max-width:min(920px,96vw); margin:0 auto;
+  padding:6px 6px calc(6px + 28px + env(safe-area-inset-bottom));
+  transition:transform .25s ease, opacity .25s ease, visibility .25s linear;
+  will-change:transform,opacity;
+}
+.bottom-buttons.is-hidden{ transform:translateY(120%); opacity:0; visibility:hidden; pointer-events:none; }
+
+/* Solid big buttons (bottom & modal) */
+.bottom-buttons .btn,
+.modal-buttons .btn{
+  width:100%; min-height:44px; padding:8px 12px;
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  border-radius:12px; border:2px solid transparent;
+  background-color:#475569; /* slate-600 */
+  background-image:linear-gradient(to bottom, rgba(255,255,255,.10), rgba(255,255,255,0.00));
+  color:#fff;
+  box-shadow:0 4px 12px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.15);
+  transition:transform .15s ease, box-shadow .15s ease, background-color .15s ease, filter .15s ease;
+  -webkit-tap-highlight-color:transparent;
+  position:relative; overflow:hidden;
+}
+.bottom-buttons .btn .icon,
+.modal-buttons .btn .icon{ font-size:20px; line-height:1; text-shadow:0 1px 0 rgba(0,0,0,.25); }
+.bottom-buttons .btn .label,
+.modal-buttons .btn .label{ font-weight:600; line-height:1.1; text-shadow:0 1px 0 rgba(0,0,0,.18); white-space:nowrap; }
+/* sheen */
+.bottom-buttons .btn::after,
+.modal-buttons .btn::after{
+  content:""; position:absolute; top:-150%; left:-30%;
+  width:60%; height:400%; transform:rotate(20deg) translateX(-120%);
+  background:linear-gradient(to right, rgba(255,255,255,0.00) 0%, rgba(255,255,255,.18) 48%, rgba(255,255,255,0.00) 100%);
+  opacity:0; pointer-events:none; transition:transform .5s ease, opacity .25s ease;
+}
+.bottom-buttons .btn:hover::after,
+.modal-buttons .btn:hover::after{ transform:rotate(20deg) translateX(120%); opacity:.9; }
+/* hover/active/focus */
+.bottom-buttons .btn:hover,.modal-buttons .btn:hover{
+  transform:translateY(-1px);
+  box-shadow:0 8px 20px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.18);
+  filter:saturate(1.05);
+}
+.bottom-buttons .btn:active,.modal-buttons .btn:active{
+  transform:translateY(0) scale(.98);
+  box-shadow:0 3px 10px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.12);
+}
+.bottom-buttons .btn:focus-visible,.modal-buttons .btn:focus-visible{
+  outline:3px solid rgba(255,255,255,.9); outline-offset:2px;
+  box-shadow:0 0 0 3px rgba(0,0,0,.25), 0 8px 20px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.18);
+}
+/* Special: “Όρισε όνομα” */
+.bottom-buttons #btnCustomCat{
+  background-color:#f59e0b; background-image:linear-gradient(to bottom, rgba(255,255,255,.14), rgba(255,255,255,0.00));
+  color:#fff;
+}
+.bottom-buttons #btnCustomCat:hover{ background-color:#d97706; }
+
+/* ---------- Panels / Sheets (layers, data, marker) ---------- */
+.layer-popup,.data-menu,.marker-popup{
+  position:absolute; top:76px; right:10px; width:320px;
+  background:rgba(15,23,42,.85);
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:14px; box-shadow:0 10px 40px rgba(0,0,0,.35);
+  color:#e5e7eb; padding:10px 10px 12px;
+  z-index:1100; display:none; opacity:0; transform:translateY(-6px) scale(.98);
+  transition:opacity .18s ease, transform .18s ease;
+}
+.layer-popup.show,.data-menu.show,.marker-popup.show{ display:block; opacity:1; transform:translateY(0) scale(1); }
+.layer-header,.marker-header{ display:flex; align-items:center; justify-content:space-between; padding:6px 6px 8px; border-bottom:1px dashed rgba(255,255,255,.12); }
+.layer-title,.marker-title{ font-weight:700; letter-spacing:.2px; color:#fff; font-size:15px; }
+.layer-actions,.marker-actions{ display:flex; gap:6px; }
+
+/* Icon button for panels */
+.btn-icon{
+  width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center;
+  border-radius:8px; border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.06); cursor:pointer;
+  box-shadow:0 2px 8px rgba(0,0,0,.18);
+  transition:transform .12s ease, background .12s ease, box-shadow .12s ease;
+  font-size:14px; color:#e5e7eb;
+}
+.btn-icon:hover{ transform:translateY(-1px); background:rgba(255,255,255,.12); box-shadow:0 4px 14px rgba(0,0,0,.28); }
+
+/* Presets/list */
+.preset-row{ display:flex; gap:8px; padding:8px 6px 10px; }
+.preset-btn{
+  flex:1; padding:6px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.14);
+  background:linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+  color:#e5e7eb; font-weight:600; font-size:13px; cursor:pointer;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.04), 0 2px 10px rgba(0,0,0,.18);
+}
+.preset-btn:hover{ background:linear-gradient(135deg, rgba(255,255,255,.14), rgba(255,255,255,.04)); }
+.layer-list{ display:flex; flex-direction:column; gap:10px; padding:6px; max-height:56vh; overflow:auto; }
+.layer-item{
+  display:grid; grid-template-columns:1fr auto; grid-template-rows:auto auto; gap:6px 8px;
+  padding:8px; border-radius:12px; border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.04);
+}
+.layer-name{ font-weight:700; color:#fff; font-size:14px; }
+.layer-sub{ color:#cbd5e1; font-size:12px; opacity:.9; grid-column:1 / -1; }
+.row-inline{ display:flex; align-items:center; gap:8px; }
+.mono{ font-family:ui-monospace,Menlo,Monaco,Consolas,"Courier New",monospace; font-size:12px; opacity:.9; }
+
+/* Switches & Sliders */
+.switch{ --w:44px; --h:24px; position:relative; width:var(--w); height:var(--h); }
+.switch input{ display:none; }
+.switch .track{ position:absolute; inset:0; background:#475569; border-radius:999px; box-shadow:inset 0 1px 3px rgba(0,0,0,.4); transition:background .15s ease; }
+.switch .thumb{ position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:linear-gradient(180deg,#fff,#e5e7eb); box-shadow:0 2px 6px rgba(0,0,0,.35); transition:transform .15s ease; }
+.switch input:checked + .track{ background:#16a34a; }
+.switch input:checked + .track + .thumb{ transform:translateX(20px); }
+
+.slider,.marker-slider{
+  -webkit-appearance:none; height:6px; border-radius:999px; background:rgba(255,255,255,.18); outline:none;
+}
+.slider::-webkit-slider-thumb,.marker-slider::-webkit-slider-thumb{
+  -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.35); cursor:pointer;
+}
+.slider::-moz-range-thumb,.marker-slider::-moz-range-thumb{
+  width:16px; height:16px; border:none; border-radius:50%; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.35); cursor:pointer;
+}
+.slider{ width:120px; }
+.marker-slider{ width:150px; }
+
+/* ---------- Chips ---------- */
+.chip{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:8px 12px; border-radius:999px;
+  background:rgba(255,255,255,.06);
+  border:1px solid var(--border);
+  color:var(--text); font-weight:700; font-size:12px;
+}
+.chip img{ width:24px; height:24px; object-fit:contain; }
+.chip .code{ font-variant-numeric:tabular-nums; letter-spacing:.2px; }
+
+/* ---------- Camera preview ---------- */
+#cameraPreview{
+  display:none; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  width:min(90vw,640px); max-height:80vh; background:#000; border:2px solid #fff; border-radius:12px;
+}
+#cameraPreview.is-open{ display:block; }
+#snapshotCanvas{ display:none; }
+#snapshotCanvas.is-open{ display:block; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); border:2px dashed #fff; border-radius:12px; }
+
+/* Leaflet Popup Card (βασικό) */
+.leaflet-popup.popup-card .leaflet-popup-content-wrapper,
+.leaflet-popup.popup-card .leaflet-popup-tip { background:#fff; color:#111; }
+.leaflet-popup.popup-card .leaflet-popup-content { margin:0; padding:0; }
+
+.popup-card .card{
+  width: min(320px, 88vw);
+  border-radius:12px; overflow:hidden;
+  border:1px solid rgba(0,0,0,.08); box-shadow:0 8px 30px rgba(0,0,0,.18);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+/* === Popup grid base (2 στήλες) === */
+.popup-card .grid{
+  display: grid;
+  grid-template-columns: 110px 1fr;  /* labels αριστερά, τιμές δεξιά */
+  column-gap: 10px;
+  row-gap: 6px;
+  align-items: start;
+}
+
+.popup-card .grid .label{
+  color: #64748b;     /* slate-500 */
+  font-weight: 600;
+  white-space: nowrap;
+}
+.popup-card .grid .value{
+  color: #111827;     /* slate-900 */
+  overflow-wrap: anywhere;
+}
+
+/* Λίγο padding στο σώμα */
+.popup-card .card__body{ padding: 12px; }
+
+/* Κουμπιά actions με στυλ */
+.popup-card .actions .btn-small{
+  appearance: none;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.popup-card .actions .btn-small:hover{
+  filter: saturate(1.03);
+  transform: translateY(-1px);
+}
+.popup-card .actions .btn-delete{
+  border: 1px solid #fecaca;
+  background: #fee2e2;
+  color: #7f1d1d;
+  border-radius: 10px;
+}
+
+/* ✅ COMPACT παραλλαγή */
+.popup-card.popup-compact .card{
+  width: min(280px, 82vw);            /* πιο στενό */
+  box-shadow: 0 6px 20px rgba(0,0,0,.18);
+}
+.popup-card.popup-compact .card__body{ padding:8px 10px; }
+.popup-card.popup-compact .title{ font-size:14px; margin-bottom:4px; }
+.popup-card.popup-compact .grid{
+  gap:4px 8px; font-size:12px;
+}
+.popup-card.popup-compact .badge-status{
+  padding:2px 7px; font-size:11px; margin-right:6px;
+}
+.popup-card.popup-compact .status-chooser{ gap:4px; }
+.popup-card.popup-compact .status-pill{ padding:3px 8px; font-size:11px; }
+
+/* Κουμπιά actions πιο «συντομευμένα» */
+.popup-card.popup-compact .actions{
+  display:grid; grid-template-columns: 1fr 1fr; gap:6px; padding:8px 10px 10px;
+}
+.popup-card.popup-compact .actions .btn-small,
+.popup-card.popup-compact .actions .btn-delete{
+  padding:6px 8px; font-size:12px;
+}
+
+/* Όριο ύψους + εσωτερικό scroll για περιεχόμενο,
+   για να μην σκεπάζει το UI όταν έχει πολλά πεδία */
+.leaflet-popup.popup-card .leaflet-popup-content-wrapper{
+  max-height: 60vh;                /* κόφτης ύψους */
+  overflow: auto;                  /* scroll μέσα στο popup */
+}
+
+/* Ακόμη πιο «σφιχτό» σε μικρά ύψη/μικρές συσκευές */
+@media (max-width: 480px), (max-height: 700px){
+  .popup-card .card{ width: min(270px, 85vw); }
+  .popup-card .card__body{ padding:8px 9px; }
+  .popup-card .title{ font-size:13px; }
+  .popup-card .grid{ font-size:11.5px; gap:4px 6px; }
+  .leaflet-popup.popup-card .leaflet-popup-content-wrapper{ max-height: 56vh; }
+}
+
+
+/* ---------- Status (badge + pills) ---------- */
+.badge-status{
+  display:inline-block; padding:3px 8px; border-radius:999px; font-size:12px; font-weight:700;
+  border:1px solid rgba(0,0,0,.12); margin-right:8px;
+}
+.badge-status.status--new { background:#fb923c; color:#111; }
+.badge-status.status--old { background:#fde047; color:#111; }
+.badge-status.status--done{ background:#22c55e; color:#fff; }
+
+.status-chooser{ display:flex; gap:6px; flex-wrap:wrap; }
+.status-pill{
+  padding:4px 10px; font-size:12px; font-weight:700; line-height:1;
+  border-radius:999px; border:1px solid rgba(0,0,0,.12);
+  background:#f8fafc; color:#0f172a; cursor:pointer; user-select:none;
+  transition:transform .12s ease, filter .12s ease, box-shadow .12s ease, background-color .12s ease;
+}
+.status-pill:hover{ transform:translateY(-1px); filter:saturate(1.05); }
+.status-pill:active{ transform:translateY(0); }
+.status-pill.status--new { background:#fed7aa; border-color:#fdba74; }
+.status-pill.status--old { background:#fef08a; border-color:#fde047; }
+.status-pill.status--done{ background:#86efac; border-color:#22c55e; color:#064e3b; }
+.status-pill.is-active{ box-shadow:0 0 0 2px rgba(0,0,0,.08), inset 0 1px 0 rgba(255,255,255,.35); }
+
+/* ---------- “My location” pulse ---------- */
+.pulse-pin{
+  position:relative; width:18px; height:18px; border-radius:50%;
+  background:#0ea5e9; box-shadow:0 0 18px rgba(14,165,233,.85), 0 0 36px rgba(14,165,233,.45);
+  border:2px solid #fff;
+}
+.pulse-pin::before{
+  content:""; position:absolute; inset:-8px; border-radius:50%;
+  border:2px solid rgba(14,165,233,.55); animation:ping 1.8s infinite ease-out;
+}
+.pulse-pin::after{
+  content:""; position:absolute; inset:-14px; border-radius:50%;
+  border:2px solid rgba(14,165,233,.35); animation:ping 2.4s .45s infinite ease-out;
+}
+@keyframes ping{
+  0%{ transform:scale(.6); opacity:.85; }
+  80%{ transform:scale(1.6); opacity:.12; }
+  100%{ transform:scale(1.9); opacity:0; }
+}
+.pulse-shadow{
+  position:absolute; bottom:-6px; left:50%; width:18px; height:6px; transform:translateX(-50%);
+  background:radial-gradient(ellipse at center, rgba(0,0,0,.35), rgba(0,0,0,0.00) 70%);
+  border-radius:50%; filter:blur(1px);
+}
+
+/* ---------- MODALS (neutral shell) ---------- */
+.modal{
+  position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  background:rgba(0,0,0,.35); z-index:1200; opacity:0; transform:scale(1.01);
+  transition:opacity .22s ease, transform .22s ease;
+}
+.modal.show{ display:flex; opacity:1; transform:scale(1); }
+
+.modal-content{
+  background:#fff; color:#0f172a;
+  border:1px solid #e2e8f0; border-radius:14px; box-shadow:0 10px 30px rgba(2,8,23,.18);
+  padding:16px; width:min(720px,94vw); font-size:14px;
+}
+.modal-content h3{ margin:0 0 6px; font-size:16px; font-weight:700; color:#0f172a; }
+.modal-content label{ display:block; margin:6px 0 4px; font-weight:600; color:#334155; }
+/* Unified inputs in modals */
+.modal-content input:not(#routeDirection),
+.modal-content select,
+.modal-content textarea{
+  width:100%; padding:7px 10px; border-radius:8px;
+  border:1px solid #cbd5e1; background:#fff; color:#0f172a; font-size:13px; line-height:1.3;
+}
+#directionModal #routeDirection{
+  width:min(360px,92%); display:block; margin:6px auto 0; height:30px; padding:4px 8px; font-size:13px; border-radius:6px; line-height:1.2;
+}
+.modal-buttons{ display:flex; gap:10px; margin-top:16px; justify-content:center; }
+.modal-buttons .btn.is-disabled,.modal-buttons .btn:disabled{
+  opacity:.55; filter:grayscale(20%); cursor:not-allowed; box-shadow:0 2px 8px rgba(0,0,0,.12);
+}
+
+/* ---------- DAMAGE MODAL (structured) ---------- */
+#damageModal .modal-content.damage-modal{
+  width:min(560px, 94vw);
+  max-height:min(80vh, 720px);
+  display:grid; grid-template-rows:auto 1fr auto;
+  background:#fff; color:#0f172a;
+  border:1px solid #e2e8f0; border-radius:12px;
+  box-shadow:0 10px 30px rgba(2,8,23,.18); overflow:hidden;
+}
+#damageModal .dm-header{
+  padding:12px; border-bottom:1px solid #e2e8f0;
+  background:linear-gradient(#fff,#fafafa);
+}
+#damageModal .dm-header h3{ margin:0; font-size:16px; font-weight:700; letter-spacing:.2px; }
+#damageModal .dm-subtitle{ margin:2px 0 0; font-size:12px; color:#64748b; }
+
+#damageModal .dm-body{ padding:8px 12px; overflow:auto; }
+#damageModal .dm-row{
+  display:flex; align-items:center; gap:8px;
+  padding:6px 0; border-bottom:1px dashed #e2e8f0;
+}
+#damageModal .dm-row:last-child{ border-bottom:0; }
+
+#damageModal .dm-label{
+  flex:0 0 120px; max-width:120px;
+  font-size:13px; color:#334155; font-weight:600; padding-right:6px; text-wrap:balance;
+}
+#damageModal .dm-field{
+  display:inline-flex; align-items:center; gap:8px; min-width:0; flex:1 1 auto;
+}
+#damageModal input[type="text"],
+#damageModal input[type="number"],
+#damageModal select,
+#damageModal textarea{
+  width:100%; padding:6px 10px; border-radius:8px;
+  border:1px solid #d1d5db; background:#fff; color:#0f172a;
+  font-size:13px; line-height:1.3; outline:none;
+  transition:border-color .15s ease, box-shadow .15s ease;
+}
+#damageModal textarea{ min-height:56px; resize:vertical; }
+#damageModal input:focus, #damageModal select:focus, #damageModal textarea:focus{
+  border-color:#0ea5e9; box-shadow:0 0 0 3px rgba(14,165,233,.15);
+}
+
+/* Pills inside damage modal */
+#damageModal .pill-group{ display:flex; gap:6px; flex-wrap:wrap; }
+#damageModal .pill{
+  display:inline-flex; align-items:center; gap:6px; padding:5px 10px;
+  border:1px solid #d1d5db; border-radius:999px; background:#f8fafc; color:#0f172a;
+  font-size:12px; font-weight:700; line-height:1; cursor:pointer; user-select:none;
+}
+#damageModal .pill.is-active{ background:#2563eb; color:#fff; border-color:#2563eb; }
+
+/* Sign picker row */
+#damageModal #signPickerRow{ display:flex; gap:8px; align-items:flex-end; }
+#damageModal #signPickerRow .sign-code-slot{ flex:0 0 auto; }
+#damageModal #signPickerRow .sign-folder-slot{ flex:1 1 auto; min-width:0; }
+#damageModal #signPickerRow .sign-actions-slot{ flex:0 0 auto; }
+#damageModal #signCode{
+  inline-size:10ch; min-inline-size:8ch; max-inline-size:12ch;
+  text-align:center; font-variant-numeric:tabular-nums; letter-spacing:.2px;
+}
+#damageModal #signSearch{ min-width:120px; }
+
+#damageModal .chips-row{ display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+#damageModal #signSearch{ margin-left:auto; flex:1 1 140px; min-width:110px; }
+@media (max-width:380px){
+  #damageModal .dm-row{ flex-wrap:wrap; }
+  #damageModal .dm-label{ flex:1 1 100%; max-width:none; }
+  #damageModal .dm-field{ flex:1 1 100%; }
+  #damageModal .dm-row>.pill-group{ flex:1 1 100%; }
+}
+
+/* Focus ring for icon-only buttons (accessibility) */
+button.btn:focus-visible, .btn:focus-visible, .btn-icon:focus-visible{
+  outline:2px solid #3b82f6; outline-offset:2px;
+}
+
+/* ===== Sign Picker (μόνο μέσα στο Modal Φθοράς) ===== */
+#damageModal #signCatChips{
+  display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;
+}
+#damageModal #signCatChips .chip{
+  border:1px solid #cbd5e1; border-radius:999px; background:#f8fafc;
+  padding:6px 14px; font-size:13px; font-weight:600; cursor:pointer;
+  transition:background .15s ease, color .15s ease, transform .12s ease;
+}
+#damageModal #signCatChips .chip:hover{ background:#e2e8f0; }
+#damageModal #signCatChips .chip.is-active{
+  background:var(--brand1); color:#fff; border-color:var(--brand1);
+}
+
+#damageModal .sign-thumb{
+  border:1px solid #e5e7eb; border-radius:12px; background:#fff;
+  display:flex; flex-direction:column; align-items:center; gap:6px; padding:8px;
+  box-shadow:0 2px 6px rgba(0,0,0,.08);
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+#damageModal .sign-thumb:hover{
+  transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,.15);
+}
+#damageModal .sign-thumb img{
+  width:60px; height:60px; object-fit:contain;
+}
+#damageModal .sign-thumb .code{
+  font-size:12px; font-weight:700; text-align:center;
+}
+#damageModal .sign-thumb.is-selected{
+  outline:3px solid var(--brand1); outline-offset:2px;
+}
+/* === Ομογενοποίηση DATA MENU με Layer Popup === */
+.data-menu .data-section{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:6px 6px 8px; margin:0 0 8px;
+  font-weight:700; font-size:15px; letter-spacing:.2px; color:#fff;
+  border-bottom:1px dashed rgba(255,255,255,.12);
+}
+.data-menu .data-row{
+  display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:8px 0 12px;
+}
+.data-menu .data-item{
+  display:flex; align-items:center; gap:8px; width:100%;
+  padding:10px 12px; border-radius:12px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.04);
+  color:#e5e7eb; font-weight:600; font-size:13px;
+  transition:transform .15s ease, background .15s ease, border-color .15s ease;
+}
+.data-menu .data-item .emoji{ width:22px; text-align:center; }
+.data-menu .data-item:hover{
+  background:rgba(255,255,255,.08);
+  border-color:rgba(255,255,255,.18);
+  transform:translateY(-1px);
+}
+.data-menu .hidden-input{ display:none; }
+.data-menu label.data-item{ cursor:pointer; }
+
+/* === Ομογενοποίηση MARKER SETTINGS με Layer Popup === */
+.marker-popup .marker-header{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:6px 6px 8px; margin-bottom:8px;
+  border-bottom:1px dashed rgba(255,255,255,.12);
+}
+.marker-popup .marker-title{
+  font-weight:700; letter-spacing:.2px; color:#fff; font-size:15px;
+}
+.marker-popup .marker-group{
+  display:flex; flex-direction:column; gap:10px; padding:2px;
+}
+.marker-popup .marker-row{
+  display:grid; grid-template-columns:1fr 1fr; align-items:center;
+  gap:8px; padding:8px; border-radius:12px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.04);
+}
+.marker-popup .marker-row label{
+  color:#cbd5e1; font-size:13px; font-weight:600;
+}
+.marker-popup .marker-row input,
+.marker-popup .marker-row select{
+  background:#0b1220; color:#e5e7eb; font-size:13px;
+  border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:6px 8px;
+  outline:none;
+}
+.marker-popup .marker-row input:focus,
+.marker-popup .marker-row select:focus{
+  border-color:rgba(255,255,255,.22);
+}
+
+/* Μεγαλύτερα, με υψηλή αντίθεση για Ρυθμιστικές / Κινδύνου */
+#damageModal #signCatChips .chip,
+#signCatChips .chip{
+  padding: 10px 16px;          /* μεγαλύτερο tap-target */
+  font-size: 14.5px;           /* πιο ευανάγνωστα */
+  font-weight: 800;            /* πιο “γεμάτα” */
+  border-radius: 999px;
+  background: #f8fafc;         /* ανοιχτό φόντο */
+  color: #0f172a;              /* σκούρο κείμενο για αντίθεση */
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 0 rgba(0,0,0,.04);
+}
+
+#damageModal #signCatChips .chip:hover,
+#signCatChips .chip:hover{
+  background: #eef2f7;         /* μικρή τονική διαφορά στο hover */
+  border-color: #c7d2fe;
+  transform: translateY(-1px);
+}
+
+#damageModal #signCatChips .chip.is-active,
+#signCatChips .chip.is-active{
+  background: var(--brand1);    /* το μπλε του theme */
+  color: #fff;                  /* άσπρο κείμενο = μέγιστη αντίθεση */
+  border-color: var(--brand1);
+  box-shadow: 0 0 0 3px rgba(0,124,240,.18);  /* “δαχτυλίδι” επιλογής */
+}
+
+/* === Popup: status pills on one row === */
+.popup-card .status-row{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px 10px 0;
+}
+.popup-card .status-row .status-pill{
+  width: 100%;
+  justify-content: center;
+}
+
+@media (max-width: 360px){
+  
+  .popup-card .status-row{ grid-template-columns: 1fr; }
+}
+
+/* === Unified popup actions (2-col grid; delete full-width) === */
+.leaflet-popup.popup-card .leaflet-popup-content{ margin:0; padding:0; }
+
+.popup-card .actions{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:6px;
+  padding:8px 10px 10px;
+  box-sizing:border-box;
+}
+
+.popup-card .actions .btn-small,
+.popup-card .actions .btn-delete{
+  min-width:0;
+  padding:6px 8px;
+  font-size:12px;
+  line-height:1.15;
+  justify-content:center;
+  white-space:normal;
+  word-break:break-word;
+}
+
+.popup-card .actions .btn-delete{ grid-column:1 / -1; }
+
+@media (max-width:360px){
+  .popup-card .actions{ grid-template-columns:1fr; }
+}
+
+/* === Unified sign thumbs grid === */
+#damageModal .sign-thumbs{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(72px,1fr));
+  gap:8px; max-height:40vh; overflow:auto; padding:6px;
+}
+
+
+/* === Marker Settings checklist layout fixes === */
+#markerCatList, #markerGroupList, .marker-cat-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.marker-cat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 999px;
+  background: var(--bg, #fff);
+  line-height: 1.2;
+  font-size: 14px;
+}
+.marker-cat-pill input[type="checkbox"] {
+  margin: 0;
+}
+.status-bar{
+  position:absolute; left:0; right:0; top:58px;
+  display:flex; gap:6px; justify-content:center; z-index:1000; padding:0 8px;
+}
+.status-pill{
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(255,255,255,.92); color:#0f172a;
+  border:1px solid #e2e8f0; border-radius:999px;
+  padding:6px 10px; font-size:13px;
+  box-shadow:0 4px 12px rgba(2,8,23,.16); user-select:none;
+}
+.status-pill input{ width:16px; height:16px; accent-color:#2563eb; }
+@media (max-width:520px){
+  .status-bar{ top:64px; font-size:12px; }
+  .status-pill{ padding:5px 9px; }
+}
+/* ----- Status pills (μέσα στο popup) ----- */
+.marker-cat-pill[data-st="new"]{
+  border:1px solid #fb923c;
+  background:#fff7ed;
+  color:#b45309;
+}
+.marker-cat-pill[data-st="old"]{
+  border:1px solid #fde047;
+  background:#fefce8;
+  color:#854d0e;
+}
+.marker-cat-pill[data-st="done"]{
+  border:1px solid #22c55e;
+  background:#ecfdf5;
+  color:#166534;
+}
+.marker-cat-pill[data-st] input{
+  accent-color: currentColor;
+}
+/* === Sign Picker Overlay (πάνω από modal) === */
+#signPickerBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45); /* slate-900 / 45% */
+  z-index: 4000;
+  display: none;
+}
+
+#signPickerPanel {
+  position: fixed !important;
+  z-index: 4001 !important;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%); /* κέντρο οθόνης */
+  width: min(920px, 92vw);
+  max-height: 82vh;
+  overflow: hidden; /* κρατάει το σώμα μέσα */
+  display: none; /* θα το δείχνουμε από JS */
+  border: 1px solid #e5e7eb; /* slate-200 */
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 20px 60px rgba(2,6,23,0.35);
+}
+
+/* Εσωτερικό layout */
+#signPickerPanel .sp-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+#signPickerPanel .sp-header {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+#signPickerPanel .sp-thumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+  overflow: auto;
+  padding: 4px;
+  max-height: calc(82vh - 130px); /* περίπου: ύψος panel - header - footer */
+}
+
+#signPickerPanel .sp-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px dashed #e5e7eb;
+}
+
+/* Προσαρμογή στα υπάρχοντα thumbnails */
+#signThumbs.sign-thumbs { /* αν υπάρχει το παλιό class, κρατάει το grid */
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+  max-height: unset; /* override του inline */
+}
+/* ===== Contrast fixes for Sign Picker (white panel) ===== */
+#signPickerPanel { color:#0f172a; }                      /* γενικό κείμενο */
+#signPickerPanel .chip {                                  /* tabs Ρυθμιστικές / Κινδύνου */
+  background:#f8fafc; color:#0f172a; border:1px solid #cbd5e1;
+  font-weight:800;
+}
+#signPickerPanel .chip.is-active{ background:var(--brand1); color:#fff; border-color:var(--brand1); }
+
+#signPickerPanel input[type="text"],
+#signPickerPanel input[type="search"]{
+  background:#fff; color:#0f172a; border:1px solid #cbd5e1;
+}
+#signPickerPanel ::placeholder{ color:#64748b; }
+
+#signPickerPanel .sign-thumb{ background:#fff; }
+#signPickerPanel .sign-thumb .code{ color:#0f172a; font-weight:700; } /* κωδικοί κάτω από τα εικονίδια */
+/* === OVERRIDE: Status pills (Damage Modal) με τα νέα χρώματα === */
+/* Βάλε αυτό ΜΕΤΑ από το #damageModal .pill.is-active ώστε να υπερισχύσει */
+
+#damageModal .status-pill.status--new  { background:#f97316; border-color:#ea580c; color:#fff; }
+#damageModal .status-pill.status--old  { background:#eab308; border-color:#ca8a04; color:#111; }
+#damageModal .status-pill.status--done { background:#22c55e; border-color:#16a34a; color:#fff; }
+
+/* Κράτα το χρώμα και όταν είναι ενεργό pill (override του μπλε active) */
+#damageModal .status-pill.status--new.is-active  { background:#f97316; border-color:#ea580c; box-shadow:0 0 0 2px rgba(234,88,12,.25); }
+#damageModal .status-pill.status--old.is-active  { background:#eab308; border-color:#ca8a04; box-shadow:0 0 0 2px rgba(202,138,4,.25); color:#111; }
+#damageModal .status-pill.status--done.is-active { background:#22c55e; border-color:#16a34a; box-shadow:0 0 0 2px rgba(34,197,94,.25); }
+/* Κεντράρισμα μόνο για το modal "Όρισε όνομα" */
+#customNameModal{
+  position: fixed;           /* όχι absolute */
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  right: auto;               /* ακύρωση του existing right:10px; */
+  width: min(420px, 92vw);   /* ωραίο πλάτος σε desktop/mobile */
+  max-height: 80vh;          /* ασφάλεια σε μικρές οθόνες */
+  overflow: auto;            /* scroll αν χρειαστεί */
+  z-index: 1100;             /* πάνω από τον χάρτη/controls */
+}
+
+/* Προαιρετικά: ένα ελαφρύ backdrop όταν ανοίγει */
+#customNameModal::before{
+  content:"";
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.35);
+  backdrop-filter: blur(2px);
+  z-index: -1; /* πίσω από το κουτί του modal */
+}
