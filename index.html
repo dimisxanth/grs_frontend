@@ -496,5 +496,20 @@
   <script defer src="ui.js"></script>
   <script defer src="signpicker.js"></script>
   <script defer src="exports.js"></script>
+  <!-- Supabase client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// 🔑 ΔΙΚΑ ΣΟΥ (όπως τα έχουμε ήδη)
+const SUPABASE_URL = "https://lamfziqoecpzoixownin.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhbWZ6aXFvZWNwem9peG93bmluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyMzAyMzksImV4cCI6MjA3NDgwNjIzOX0.e0AsWZoDiunvycziMRBWbgjf0UMUg6qB3w4JRLdKUUc";
+
+// Δημιουργία client
+window.supabase = window.supabase || {};
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// 🌐 Backend URL (Render)
+window.BACKEND_URL = "https://grs-backend-gtgm.onrender.com";
+</script>
+
 </body>
 </html>
