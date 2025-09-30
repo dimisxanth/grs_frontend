@@ -595,3 +595,62 @@ document.addEventListener('DOMContentLoaded', ()=>{
   pick('impGeoJSON', f => importFromGeoJSON(f));
   pick('impCSV',     f => importFromCSV(f));
 });
+/* ===========================
+   Server PNG export μέσω backend
+=========================== */
+async function exportViaBackend() {
+  try {
+    const supa = window.supabaseClient || (window.supabase && window.supabase.createClient && window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY));
+    if (!supa) { alert("Supabase client δεν είναι διαθέσιμος"); return; }
+
+    const { data: { session } } = await supa.auth.getSession();
+    if (!session) { alert("Κάνε login πρώτα (Supabase)."); return; }
+
+    // 🔧 Φτιάχνουμε ένα απλό payload (δείγμα).
+    // Αν θέλεις να συνθέσεις εικόνα από markers, μπορείς να στείλεις π.χ. τα data τους.
+    const payload = {
+      width: 800,
+      height: 600,
+      format: "PNG",
+      add_watermark: true,
+      // Δείγμα layer (μπορείς να αφαιρέσεις/αλλάξεις)
+      layers: [
+        // Παράδειγμα: αν έχεις διαθέσιμη εικόνα κάπου public, ή icons από το repo σου
+        // { src: "κινδύνου/Κ-10.png", x: 40, y: 40, w: 200, h: 200, opacity: 1 }
+      ],
+      // Προαιρετικά: στείλε και markers αν θες ο server να κάνει πιο έξυπνη σύνθεση
+      // markers: (window.damageMarkers || []).map(m => m?.options?.data).filter(Boolean)
+    };
+
+    const res = await fetch(`${window.BACKEND_URL}/api/export`, {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + session.access_token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      alert("Σφάλμα server: " + txt);
+      return;
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "export.png";
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert("Σφάλμα exportViaBackend: " + (e?.message || e));
+  }
+}
+
+// (Προαιρετικό) Αν υπάρχει κουμπί με id="expPNG" στο μενού, σύνδεσέ το:
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('expPNG');
+  if (btn) btn.addEventListener('click', () => { exportViaBackend(); toggleDataMenu(false); });
+});
