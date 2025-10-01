@@ -28,77 +28,6 @@
     .sign-thumb .code{font-size:11px;text-align:center}
     .sign-thumb.is-selected{outline:2px solid #3b82f6}
   </style>
-<!-- Supabase client -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-  const SUPABASE_URL = "https://lamfziqoecpzoixownin.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhbWZ6aXFvZWNwem9peG93bmluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyMzAyMzksImV4cCI6MjA3NDgwNjIzOX0.e0AsWZoDiunvycziMRBWbgjf0UMUg6qB3w4JRLdKUUc";
-  const supabase = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY,
-    { auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage } }
-  );
-
-  const BACKEND_URL = "https://grs-backend-gtgm.onrender.com";
-
-  function showLogin(){ document.getElementById('loginOverlay').style.display = 'flex'; }
-  function hideLogin(){ document.getElementById('loginOverlay').style.display = 'none'; }
-
-  async function doLogin(){
-    const email = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPass').value;
-    const msg = document.getElementById('loginMsg');
-    msg.textContent = "Σύνδεση...";
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error){ msg.textContent = "Αποτυχία: " + error.message; return; }
-    msg.textContent = "✅ Επιτυχής σύνδεση";
-    // το onAuthStateChange θα κρύψει το overlay
-  }
-
-  document.addEventListener('DOMContentLoaded', async () => {
-    // 1) ΠΑΝΤΑ καθάρισε τυχόν παλιό session για να ζητήσει login
-    try { await supabase.auth.signOut(); } catch(e){}
-
-    // 2) Δείξε το overlay
-    showLogin();
-
-    // 3) Κουμπί login
-    document.getElementById('loginBtn').addEventListener('click', doLogin);
-
-    // 4) Όταν αλλάζει το auth state, κρύβε/δείχνε overlay
-    supabase.auth.onAuthStateChange((_e, sess) => {
-      if (sess) hideLogin(); else showLogin();
-    });
-  });
-
-  // Προαιρετικό helper στη κονσόλα
-  window.logout = async () => { await supabase.auth.signOut(); showLogin(); };
-
-  // Παράδειγμα κλήσης backend (αν το χρειάζεσαι):
-  async function exportToServer(payload) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { alert("Login first!"); showLogin(); return; }
-    const res = await fetch(`${BACKEND_URL}/api/export`, {
-      method: "POST",
-      headers: {
-        "Authorization": "Bearer " + session.access_token,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(payload)
-    });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "(no body)");
-      alert(txt || `HTTP ${res.status}`);
-      return;
-    }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "export.png"; a.click();
-    URL.revokeObjectURL(url);
-  }
-</script>
-
 
   <script id="signCatalogJSON" type="application/json">
 {
@@ -121,20 +50,7 @@
 
 
 </head>
-
 <body>
-
-<!-- Fullscreen login overlay -->
-<div id="loginOverlay" style="position:fixed;inset:0;background:#0b1220;color:#fff;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;z-index:5000;">
-  <h2 style="margin:0 0 6px 0;">Σύνδεση</h2>
-  <input id="loginEmail" type="email" placeholder="Email"
-         style="margin:0;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:#0f172a;color:#fff;width:260px;"/>
-  <input id="loginPass" type="password" placeholder="Password"
-         style="margin:0;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:#0f172a;color:#fff;width:260px;"/>
-  <button id="loginBtn" style="margin-top:4px;padding:10px 22px;border-radius:10px;border:none;background:#22c55e;color:#0a0a0a;font-weight:700;cursor:pointer;">Login</button>
-  <small id="loginMsg" style="opacity:.85;"></small>
-</div>
-
 
   <div id="map"></div>
   <video id="cameraPreview" autoplay muted playsinline
@@ -406,15 +322,48 @@
     </div>
   </div>
 
-  <div id="directionModal" class="modal">
-    <div class="modal-content">
-      <h3>Κατεύθυνση διαδρομής</h3>
-      <input id="routeDirection" type="text" placeholder="π.χ. Αθήνα → Λαμία"/>
-      <div class="modal-buttons">
-        <button id="btnDirectionOk" class="btn">Επιβεβαίωση</button>
-      </div>
+  <!-- Unified: Work Modal -->
+<div id="workModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="workTitle" aria-describedby="workDesc">
+  <div class="modal-content modal--wide" tabindex="-1">
+    <header class="modal-header">
+      <h3 id="workTitle">Έναρξη Εργασίας</h3>
+      <p id="workDesc" class="subtle">Επίλεξε αν θα συνεχίσεις ή θα ξεκινήσεις με κατεύθυνση.</p>
+    </header>
+
+    <div class="tabs" role="tablist" aria-label="Επιλογές εκκίνησης">
+      <button id="tab-continue" class="tab is-active" role="tab" aria-selected="true">Συνέχιση</button>
+      <button id="tab-new" class="tab" role="tab" aria-selected="false">Νέα Εργασία</button>
     </div>
+
+    <!-- Συνέχιση -->
+    <section id="panel-continue" role="tabpanel" aria-labelledby="tab-continue">
+      <div class="summary-card">
+        <div class="row">
+          <div>
+            <div class="label">Τελευταία συνεδρία:</div>
+            <div id="lastSessionInfo" class="value">–</div>
+          </div>
+          
+        </div>
+      </div>
+    </section>
+
+    <!-- Νέα Εργασία -->
+    <section id="panel-new" role="tabpanel" aria-labelledby="tab-new" hidden>
+      <div class="form-row">
+        <label for="routeDirection" class="label">Κατεύθυνση</label>
+        <input id="routeDirection" type="text" placeholder="π.χ. Αθήνα → Λαμία" />
+      </div>
+    </section>
+
+    <footer class="modal-buttons">
+      <button id="btnWorkCancel" class="btn btn-secondary" type="button">Άκυρο</button>
+      <button id="btnWorkOk" class="btn btn-primary" type="button">Επιβεβαίωση</button>
+    </footer>
   </div>
+</div>
+
+
 
   <!-- ====== DAMAGE MODAL ====== -->
   <div id="damageModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="damageTitle" aria-describedby="damageSubtitle">
@@ -547,6 +496,7 @@
 
 
 
+
       <!-- Footer -->
       <div class="modal-buttons">
         <button id="btnDamageCancel" class="btn-secondary">Άκυρο</button>
@@ -555,16 +505,6 @@
     </div>
   </div>
 
-  <div id="startModal" class="modal">
-    <div class="modal-content">
-      <h3>Έναρξη Εργασίας</h3>
-      <p>Θέλεις να ξεκινήσεις νέα εργασία ή να συνεχίσεις την προηγούμενη;</p>
-      <div class="modal-buttons">
-        <button id="btnNewWork" class="btn"><span class="icon">✏️</span><span class="label">Νέα Εργασία</span></button>
-        <button id="btnContinue" class="btn"><span class="icon">⏩</span><span class="label">Συνέχιση</span></button>
-      </div>
-    </div>
-  </div>
 
   <footer>© 2025 Developed by D. Xanthopoulos · Civil Eng.</footer>
 
@@ -574,13 +514,10 @@
   <script defer src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
-
- <!-- ===== Εσωτερικά scripts (σωστή σειρά) ===== -->
-<script defer src="core.js?v=login2"></script>
-<script defer src="ui.js?v=login2"></script>
-<script defer src="signpicker.js?v=login2"></script>
-<script defer src="exports.js?v=login2"></script>
-
-
+  <!-- ===== Εσωτερικά scripts (σωστή σειρά) ===== -->
+  <script defer src="ui.js"></script>
+<script defer src="core.js"></script>
+  <script defer src="signpicker.js"></script>
+  <script defer src="exports.js"></script>
 </body>
 </html>
