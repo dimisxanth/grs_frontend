@@ -511,16 +511,39 @@
   <!-- Supabase client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  // 🔑 Supabase Settings → API
-  const SUPABASE_URL = "https://lamfziqoecpzoixownin.supabase.co";  // Project URL
+  const SUPABASE_URL = "https://lamfziqoecpzoixownin.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhbWZ6aXFvZWNwem9peG93bmluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyMzAyMzksImV4cCI6MjA3NDgwNjIzOX0.e0AsWZoDiunvycziMRBWbgjf0UMUg6qB3w4JRLdKUUc";
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true }
+  });
 
-  // ⬇️ Βάλε εδώ το ΔΗΜΟΣΙΟ URL του backend (HTTPS, όχι localhost)
-  // Παράδειγμα: "https://grs-backend.onrender.com"
   const BACKEND_URL = "https://grs-backend-gtgm.onrender.com";
 
-  // ===== Overlay Login =====
+  const overlay = () => document.getElementById('loginOverlay');
+  function showLogin(){ overlay().style.display = 'flex'; }
+  function hideLogin(){ overlay().style.display = 'none'; }
+
+  function isSessionValid(session){
+    if (!session || !session.user) return false;
+    // Supabase v2: expires_at = epoch seconds. Βάζουμε και ένα μικρό περιθώριο 15”
+    const expMs = (session.expires_at || 0) * 1000;
+    return expMs - 15000 > Date.now();
+  }
+
+  async function boot(){
+    // ΞΕΚΙΝΑΜΕ πάντα δείχνοντας overlay για να μην φανεί flicker του χάρτη
+    showLogin();
+    const { data:{ session } } = await supabase.auth.getSession();
+    if (isSessionValid(session)) {
+      hideLogin();
+    } else {
+      // Αν υπάρχει session αλλά έληξε, καθάρισε
+      if (session) { try { await supabase.auth.signOut(); } catch(e){} }
+      showLogin();
+    }
+  }
+  document.addEventListener('DOMContentLoaded', boot);
+
   async function doLogin() {
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPass').value;
@@ -531,56 +554,33 @@
       msg.textContent = "Αποτυχία: " + error.message;
     } else {
       msg.textContent = "✅ Επιτυχής σύνδεση";
-      document.getElementById('loginOverlay').style.display = "none";
+      hideLogin();
     }
   }
   document.getElementById('loginBtn').addEventListener('click', doLogin);
 
-  // Κρύψε overlay αν υπάρχει ήδη session
-  (async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) document.getElementById('loginOverlay').style.display = "none";
-  })();
-  // Δείξε/κρύψε overlay σε login/logout
-  supabase.auth.onAuthStateChange((_e, session) => {
-    document.getElementById('loginOverlay').style.display = session ? 'none' : 'flex';
-  });
+  // (Προαιρετικό) logout helper
+  window.logout = async () => { await supabase.auth.signOut(); showLogin(); };
 
-  // ===== Παράδειγμα κλήσης backend API =====
   async function exportToServer(payload) {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      alert("Login first!");
-      return;
-    }
-
-    console.log("Export call →", BACKEND_URL);
-
+    if (!isSessionValid(session)) { alert("Login first!"); return; }
     const res = await fetch(`${BACKEND_URL}/api/export`, {
-  method: "POST",
-  headers: {
-    "Authorization": "Bearer " + session.access_token,
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify(payload)
-});
-
-
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "(no body)");
-      alert(txt || `HTTP ${res.status}`);
-      return;
-    }
-
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + session.access_token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) { alert(await res.text().catch(()=>`HTTP ${res.status}`)); return; }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "export.png";
-    a.click();
+    const a = document.createElement("a"); a.href = url; a.download = "export.png"; a.click();
     URL.revokeObjectURL(url);
   }
 </script>
+
 
 </body>
 </html>
