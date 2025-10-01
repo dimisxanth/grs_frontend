@@ -477,10 +477,17 @@ btnOk?.addEventListener('click', ()=>{
 
     // 🔴 ΝΕΟ: Καθάρισε markers και localStorage (ξεκίνα καθαρά)
     try { resetAll?.(); } catch(e){ console.warn('resetAll failed', e); }
+
+    // 🔴 ΝΕΟ: Επαναφορά κουμπιού "Όρισε όνομα" στο default
+    const btn = document.getElementById('btnCustomCat');
+    if (btn){
+      btn.innerHTML = `<i class="fa-solid fa-exclamation-triangle"></i> ${window.CUSTOM_BTN_DEFAULT}`;
+    }
   }
 
   closeWorkModal();
 });
+
 
 
   btnCancel?.addEventListener('click', closeWorkModal);
