@@ -290,14 +290,23 @@ function addRecordAsMarker(r){
 }
 
 
-// ===== STORAGE =====
+/// ===== STORAGE =====
 function saveToLocal(){
   try{
-    const data = (window.damageMarkers || [])
-      .map(m => m?.options?.data)
-      .filter(Boolean);
+    // ΠΑΝΤΑ σώζουμε ΚΑΙ lat/lng από τον marker (ώστε να ξαναστηθούν σωστά)
+    const data = (window.damageMarkers || []).map(m => {
+      const r  = { ...(m?.options?.data || {}) };
+      const ll = m?.getLatLng ? m.getLatLng() : null;
+      if (ll){
+        r.lat = Number(ll.lat);
+        r.lng = Number(ll.lng);
+      }
+      return r;
+    }).filter(Boolean);
+
     localStorage.setItem("damageMarkers", JSON.stringify(data));
   }catch(e){ console.warn('saveToLocal error:', e); }
+
   try{ saveCounters?.(); }catch{}
 }
 
@@ -309,19 +318,19 @@ function hasSavedData(){
 }
 
 function loadFromLocal(){
-  // 0) counters
+  // προαιρετικά: φορτώνεις counters σου
   try{ loadCounters?.(); }catch{}
 
-  // 1) διάβασμα ασφαλώς
+  // 1) ασφαλές διάβασμα
   let data = [];
-  try {
+  try{
     data = JSON.parse(localStorage.getItem("damageMarkers") || "[]") || [];
-  } catch(e){
+  }catch(e){
     console.warn('loadFromLocal: parse error', e);
     return 0;
   }
 
-  // 2) layer & καθάρισμα τρεχόντων
+  // 2) ετοίμασε layer & καθάρισε τρέχοντες markers
   try{
     if (!window.markerLayer && window.L && window.map){
       window.markerLayer = L.layerGroup().addTo(window.map);
@@ -333,10 +342,10 @@ function loadFromLocal(){
       }catch{}
     });
     window.damageMarkers = [];
-    if (window.markerLayer?.clearLayers) window.markerLayer.clearLayers();
+    window.markerLayer?.clearLayers?.();
   }catch(e){ console.warn('clear markers failed', e); }
 
-  // 3) backfill numbering (legacy)
+  // 3) backfill αρίθμησης για παλιές εγγραφές
   const localCounters = { ...(window.categoryCounters || {}) };
   const ensureSeq = (rec) => {
     if (Number.isFinite(rec.seqNum)) return rec;
@@ -358,7 +367,10 @@ function loadFromLocal(){
     const r = ensureSeq({ ..._r });
     r.status = normStatus(r.status);
 
-    if (typeof r.lat !== 'number' || typeof r.lng !== 'number') return;
+    // cast lat/lng σε αριθμό (αν ήταν string στο localStorage)
+    r.lat = Number(r.lat);
+    r.lng = Number(r.lng);
+    if (!Number.isFinite(r.lat) || !Number.isFinite(r.lng)) return;
 
     const m = L.marker([r.lat, r.lng], { icon: L.divIcon({className:'cat-pin', html:''}) })
       .addTo(window.markerLayer)
@@ -375,7 +387,7 @@ function loadFromLocal(){
       });
     }
 
-    // 🔴 κρίσιμο: δέσε τα δεδομένα στον marker για μελλοντικό save
+    // ΔΕΣΕ τα δεδομένα πάνω στον marker για μελλοντικό save
     if (!m.options) m.options = {};
     m.options.data = r;
 
@@ -386,7 +398,7 @@ function loadFromLocal(){
     if (group) group.addLayer(m);
   });
 
-  // 5) counters & fit
+  // 5) ενημέρωσε counters & κάνε fit στους δείκτες
   window.categoryCounters = localCounters;
   try{ saveCounters?.(); }catch{}
   try{
@@ -395,7 +407,7 @@ function loadFromLocal(){
     }
   }catch{}
 
-  // 6) UI "Τελευταία συνεδρία" & Κατεύθυνση
+  // 6) ενημέρωσε UI "Τελευταία συνεδρία" & Κατεύθυνση
   try{
     const route = localStorage.getItem('routeDirection') || '';
     const when  = localStorage.getItem('lastSessionDate') || '—';
@@ -408,12 +420,13 @@ function loadFromLocal(){
     if (inp && !inp.value) inp.value = route;
   }catch{}
 
-  // 7) ξανασώσε (τώρα που έχουν options.data) & καθάρισε redo
+  // 7) σώσε ξανά (τώρα που οι markers έχουν options.data) & καθάρισε redo
   try{ saveToLocal(); }catch{}
   if (window.redoStack) window.redoStack.length = 0;
 
   return (window.damageMarkers || []).length;
 }
+
 
 // --- Map init ---
 function initMap() {
@@ -791,27 +804,33 @@ function saveDamage(){
 }
 
 
-// --- Reset / Exports ---
 function resetAll(){
   // remove all markers & reset arrays and counters
-  (window.damageMarkers || []).forEach(m => { try { window.map.removeLayer(m); } catch { console.warn('Caught error in core.js'); } });
+  (window.damageMarkers || []).forEach(m => { 
+    try { window.map.removeLayer(m); } catch { console.warn('Caught error in core.js'); } 
+  });
   window.damageMarkers.length = 0;
 
   window.categoryCounters = {};
-  window.redoStack.length = 0;            // καθάρισμα redo
+  window.redoStack.length = 0;            
   saveCounters?.();
 
   // καθάρισε το όνομα εργασίας & επανάφερε UI
   try { localStorage.removeItem(window.SESSION_CUSTOM_KEY); } catch {}
+  try { localStorage.removeItem("damageMarkers"); } catch {}
+  try { localStorage.removeItem("routeDirection"); } catch {}
+  try { localStorage.removeItem("lastSessionDate"); } catch {}
+
   const _btn = document.getElementById('btnCustomCat');
   if (_btn) _btn.innerHTML = `<i class="fa-solid fa-exclamation-triangle"></i> ${window.CUSTOM_BTN_DEFAULT}`;
 
   // καθάρισμα θέσης/GPS
-  if (accuracyCircle) { try { window.map.removeLayer(accuracyCircle); } catch { console.warn('Caught error in core.js'); } accuracyCircle = null; }
-  if (window.currentMarker)  { try { window.map.removeLayer(window.currentMarker); }  catch { console.warn('Caught error in core.js'); } window.currentMarker  = null; }
-  if (window.watchId) { try { navigator.geolocation.clearWatch(window.watchId); } catch { console.warn('Caught error in core.js'); } window.watchId = null; }
+  if (accuracyCircle) { try { window.map.removeLayer(accuracyCircle); } catch {} accuracyCircle = null; }
+  if (window.currentMarker)  { try { window.map.removeLayer(window.currentMarker); }  catch {} window.currentMarker  = null; }
+  if (window.watchId) { try { navigator.geolocation.clearWatch(window.watchId); } catch {} window.watchId = null; }
   window.firstLocate = true;
 }
+
 
 // ==================== DOMContentLoaded ====================
 document.addEventListener('DOMContentLoaded', async () => {
