@@ -391,6 +391,31 @@ function loadFromLocal(){
     if (!m.options) m.options = {};
     m.options.data = r;
 
+    // ➕ ΕΦΑΡΜΟΓΗ SKIN/ICON (όπως κάνει το κουμπί «Ανανέωση»)
+    try {
+      if (typeof window.applyMarkerSettings === 'function') {
+        window.applyMarkerSettings(m);
+      } else {
+        // Fallback για να μη μείνει «αόρατος»
+        m.setIcon(L.divIcon({
+          className: 'cat-pin',
+          html: '<span class="pin-core"></span>',
+          iconSize: [24, 24],
+          iconAnchor: [12, 24]
+        }));
+      }
+    } catch (e) {
+      console.warn('applyMarkerSettings failed; using fallback icon', e);
+      try {
+        m.setIcon(L.divIcon({
+          className: 'cat-pin',
+          html: '<span class="pin-core"></span>',
+          iconSize: [24, 24],
+          iconAnchor: [12, 24]
+        }));
+      } catch {}
+    }
+
     try { m.setZIndexOffset?.(2000); } catch {}
     m.on('click', () => m.openPopup());
 
@@ -805,31 +830,47 @@ function saveDamage(){
 
 
 function resetAll(){
-  // remove all markers & reset arrays and counters
+  // 1) αφαίρεσε markers και καθάρισε tooltips/popups
   (window.damageMarkers || []).forEach(m => { 
-    try { window.map.removeLayer(m); } catch { console.warn('Caught error in core.js'); } 
+    try { m.unbindTooltip?.(); } catch {}
+    try { m.unbindPopup?.();   } catch {}
+    try { m.remove?.(); } catch {}
+    try { window.map.removeLayer(m); } catch {}
   });
-  window.damageMarkers.length = 0;
+  window.damageMarkers = [];
 
+  // 2) καθάρισε layer group
+  try { window.markerLayer?.clearLayers?.(); } catch {}
+
+  // 3) καθάρισε τυχόν «ορφανά» tooltips/popups από το DOM
+  try {
+    document.querySelectorAll('.leaflet-tooltip, .leaflet-popup').forEach(el=>{
+      try { el.remove(); } catch {}
+    });
+  } catch {}
+
+  // 4) counters, redoStack
   window.categoryCounters = {};
-  window.redoStack.length = 0;            
+  window.redoStack = [];
   saveCounters?.();
 
-  // καθάρισε το όνομα εργασίας & επανάφερε UI
+  // 5) καθάρισε ΜΟΝΟ τα δεδομένα καταγραφής – όχι την κατεύθυνση
   try { localStorage.removeItem(window.SESSION_CUSTOM_KEY); } catch {}
-  try { localStorage.removeItem("damageMarkers"); } catch {}
-  try { localStorage.removeItem("routeDirection"); } catch {}
+  try { localStorage.setItem("damageMarkers","[]"); } catch {}
   try { localStorage.removeItem("lastSessionDate"); } catch {}
+  // 👉 ΔΕΝ σβήνουμε το routeDirection εδώ
 
+  // 6) επαναφορά κουμπιού «Όρισε όνομα»
   const _btn = document.getElementById('btnCustomCat');
   if (_btn) _btn.innerHTML = `<i class="fa-solid fa-exclamation-triangle"></i> ${window.CUSTOM_BTN_DEFAULT}`;
 
-  // καθάρισμα θέσης/GPS
+  // 7) καθάρισμα θέσης/GPS
   if (accuracyCircle) { try { window.map.removeLayer(accuracyCircle); } catch {} accuracyCircle = null; }
-  if (window.currentMarker)  { try { window.map.removeLayer(window.currentMarker); }  catch {} window.currentMarker  = null; }
+  if (window.currentMarker) { try { window.map.removeLayer(window.currentMarker); } catch {} window.currentMarker = null; }
   if (window.watchId) { try { navigator.geolocation.clearWatch(window.watchId); } catch {} window.watchId = null; }
   window.firstLocate = true;
 }
+
 
 
 // ==================== DOMContentLoaded ====================
