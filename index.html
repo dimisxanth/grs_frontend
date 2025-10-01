@@ -41,49 +41,43 @@
 
   const BACKEND_URL = "https://grs-backend-gtgm.onrender.com";
 
-  function showLogin(){ loginOverlay.style.display = 'flex'; }
-  function hideLogin(){ loginOverlay.style.display = 'none'; }
+  function showLogin(){ document.getElementById('loginOverlay').style.display = 'flex'; }
+  function hideLogin(){ document.getElementById('loginOverlay').style.display = 'none'; }
 
   async function doLogin(){
-    const email = loginEmail.value.trim();
-    const password = loginPass.value;
-    loginMsg.textContent = "Σύνδεση...";
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPass').value;
+    const msg = document.getElementById('loginMsg');
+    msg.textContent = "Σύνδεση...";
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error){ loginMsg.textContent = "Αποτυχία: " + error.message; return; }
-    loginMsg.textContent = "✅ Επιτυχής σύνδεση";
+    if (error){ msg.textContent = "Αποτυχία: " + error.message; return; }
+    msg.textContent = "✅ Επιτυχής σύνδεση";
+    // το onAuthStateChange θα κρύψει το overlay
   }
 
   document.addEventListener('DOMContentLoaded', async () => {
-    // refs για πιο καθαρές κλήσεις
-    window.loginOverlay = document.getElementById('loginOverlay');
-    window.loginEmail   = document.getElementById('loginEmail');
-    window.loginPass    = document.getElementById('loginPass');
-    window.loginBtn     = document.getElementById('loginBtn');
-    window.loginMsg     = document.getElementById('loginMsg');
-
-    loginBtn.addEventListener('click', doLogin);
-
-    // 1) Σβήσε πάντα τυχόν παλιό session → ΠΑΝΤΑ login
+    // 1) ΠΑΝΤΑ καθάρισε τυχόν παλιό session για να ζητήσει login
     try { await supabase.auth.signOut(); } catch(e){}
 
-    // 2) Δείξε overlay
+    // 2) Δείξε το overlay
     showLogin();
 
-    // 3) Όταν αλλάζει το auth state, κρύβε / δείχνε
+    // 3) Κουμπί login
+    document.getElementById('loginBtn').addEventListener('click', doLogin);
+
+    // 4) Όταν αλλάζει το auth state, κρύβε/δείχνε overlay
     supabase.auth.onAuthStateChange((_e, sess) => {
       if (sess) hideLogin(); else showLogin();
     });
-
-    // Προαιρετικό log
-    const { data: { session } } = await supabase.auth.getSession();
-    console.log('has session?', !!session);
   });
 
-  // Παράδειγμα κλήσης backend (ίδιο με πριν)
+  // Προαιρετικό helper στη κονσόλα
+  window.logout = async () => { await supabase.auth.signOut(); showLogin(); };
+
+  // Παράδειγμα κλήσης backend (αν το χρειάζεσαι):
   async function exportToServer(payload) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { alert("Login first!"); showLogin(); return; }
-
     const res = await fetch(`${BACKEND_URL}/api/export`, {
       method: "POST",
       headers: {
@@ -92,23 +86,19 @@
       },
       body: JSON.stringify(payload)
     });
-
     if (!res.ok) {
       const txt = await res.text().catch(() => "(no body)");
       alert(txt || `HTTP ${res.status}`);
       return;
     }
-
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url; a.download = "export.png"; a.click();
     URL.revokeObjectURL(url);
   }
-
-  // Debug helper
-  window.logout = async () => { await supabase.auth.signOut(); showLogin(); };
 </script>
+
 
   <script id="signCatalogJSON" type="application/json">
 {
