@@ -379,11 +379,18 @@ function applySessionCustomLabelToButton(){
   labelEl.textContent = lbl || 'Όρισε όνομα';
 }
 window.applySessionCustomLabelToButton = window.applySessionCustomLabelToButton || applySessionCustomLabelToButton;
+function resetCustomNameToDefault(){
+  try { localStorage.removeItem('sessionCustomCategoryLabel'); } catch {}
+  // ανανέωσε το κείμενο στο κουμπί
+  try { window.applySessionCustomLabelToButton?.(); } catch {}
+}
+window.resetCustomNameToDefault = window.resetCustomNameToDefault || resetCustomNameToDefault;
 
 function closeDamageModal(){
   document.getElementById('damageModal')?.classList.remove('show');
 }
 window.closeDamageModal = window.closeDamageModal || closeDamageModal;
+// ——— Damage modal: ESC + click-outside close (ασφαλές με camera preview) ———
 // ——— Damage modal: ESC + click-outside close (ασφαλές με camera preview) ———
 (function attachDamageModalDismiss(){
   const modal = document.getElementById('damageModal');
@@ -391,30 +398,105 @@ window.closeDamageModal = window.closeDamageModal || closeDamageModal;
 
   const isOpen = () => modal.classList.contains('show');
 
-  // Κλείσιμο με ESC (αν δεν τρέχει προεπισκόπηση κάμερας)
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && isOpen()) {
-      if (window.isCameraPreviewOpen) return; // μην το κλείσεις κατά λάθος όταν δείχνει video
-      window.closeDamageModal && window.closeDamageModal();
+  // ESC για κλείσιμο (δεν διακόπτει ενεργό preview κάμερας)
+  document.addEventListener('keydown', (e)=>{
+    if (e.key === 'Escape' && isOpen() && !window.isCameraPreviewOpen) {
+      try { window.closeDamageModal?.(); } catch {}
     }
   });
 
-  // Κλείσιμο με κλικ στο backdrop (όχι μέσα στο .modal-content)
-  modal.addEventListener('click', function (e) {
-    if (!isOpen()) return;
-    if (window.isCameraPreviewOpen) return; // το video προεπισκόπησης είναι εκτός modal
+  // click-outside για κλείσιμο (μόνο αν δεν τραβάς κάμερα)
+  modal.addEventListener('click', (e)=>{
+    if (!isOpen() || window.isCameraPreviewOpen) return;
     const content = modal.querySelector('.modal-content');
     if (content && !content.contains(e.target)) {
-      window.closeDamageModal && window.closeDamageModal();
+      try { window.closeDamageModal?.(); } catch {}
     }
   });
 })();
 
-// --- Direction modal open/close (used by core.js and start flow) ---
-function openDirectionModal(){ try{ qs('#directionModal')?.classList.add('show'); }catch{} }
-function closeDirectionModal(){ try{ qs('#directionModal')?.classList.remove('show'); }catch{} }
-window.openDirectionModal = window.openDirectionModal || openDirectionModal;
-window.closeDirectionModal = window.closeDirectionModal || closeDirectionModal;
+// --- Unified Work Modal (single input) ---
+(function attachWorkModal(){
+  const m = document.getElementById('workModal');
+  if (!m || m._wired) return; m._wired = true;
+
+  // Tabs & panels
+  const tabCont = m.querySelector('#tab-continue');
+  const tabNew  = m.querySelector('#tab-new');
+  const pCont   = m.querySelector('#panel-continue');
+  const pNew    = m.querySelector('#panel-new');
+
+  // Buttons & fields
+  const btnOk      = m.querySelector('#btnWorkOk');
+  const btnCancel  = m.querySelector('#btnWorkCancel');
+  const btnCont    = m.querySelector('#btnContinueWork');
+  const lastInfo   = m.querySelector('#lastSessionInfo');
+  const routeInput = m.querySelector('#routeDirection'); // ΜΟΝΟ ένα input
+
+  function setTab(which){
+  const isCont = which === 'continue';
+  tabCont?.classList.toggle('is-active', isCont);
+  tabNew ?.classList.toggle('is-active', !isCont);
+  if (pCont) pCont.hidden = !isCont;
+  if (pNew)  pNew.hidden  =  isCont;
+  (isCont ? btnCont : routeInput)?.focus();
+
+  // reset "Όρισε όνομα" όταν πάμε σε Νέα εργασία
+  if (!isCont){ // which === 'new'
+    try { localStorage.removeItem('sessionCustomCategoryLabel'); } catch {}
+    try { window.applySessionCustomLabelToButton?.(); } catch {}
+  }
+}
+
+function loadLastSessionInfo(){
+  let route='–', cnt=0, when='—';
+  try { route = localStorage.getItem('routeDirection') || '–'; } catch {}
+  try { cnt   = (window.damageMarkers||[]).length || 0; } catch {}
+  try { when  = localStorage.getItem('lastSessionDate') || '—'; } catch {}
+  if (lastInfo) lastInfo.textContent = `Κατεύθυνση: ${route} · Σημεία: ${cnt} · Ημ/νία: ${when}`;
+}
+
+btnOk?.addEventListener('click', ()=>{
+
+    // Αν είμαστε στο tab "Νέα", σώσε την κατεύθυνση από το ΕΝΑ πεδίο
+    if (!pNew.hidden){
+      const dir = (routeInput?.value || '').trim();
+      if (!dir){ routeInput?.focus(); return; }
+      try {
+        localStorage.setItem('routeDirection', dir);
+        const rec = JSON.parse(localStorage.getItem('recentRoutes')||'[]');
+        if (!rec.includes(dir)) rec.unshift(dir);
+        localStorage.setItem('recentRoutes', JSON.stringify(rec.slice(0,20)));
+      } catch {}
+    }
+    closeWorkModal();
+  });
+
+  btnCancel?.addEventListener('click', closeWorkModal);
+  btnCont  ?.addEventListener('click', ()=> { closeWorkModal(); });
+
+  tabCont?.addEventListener('click', ()=> setTab('continue'));
+  tabNew ?.addEventListener('click', ()=> setTab('new'));
+
+  m.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter') { e.preventDefault(); btnOk?.click(); }
+    if (e.key === 'Escape'){ e.preventDefault(); closeWorkModal(); }
+  });
+
+  function openWorkModal(pref='auto'){
+    loadLastSessionInfo();
+    const hasPrev = !!localStorage.getItem('routeDirection');
+    setTab(pref==='auto' ? (hasPrev?'continue':'new') : pref);
+    m.classList.add('show');
+    m.querySelector('.modal-content')?.focus();
+  }
+  function closeWorkModal(){ m.classList.remove('show'); }
+
+  window.openWorkModal  = openWorkModal;
+  window.closeWorkModal = closeWorkModal;
+})();
+
+
 // === Category-specific form scenarios (fields shown, labels, description pills, focus) ===
 const CATEGORY_FORMS = {
   'Πινακίδες': {
