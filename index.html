@@ -508,54 +508,52 @@
   <script defer src="ui.js"></script>
   <script defer src="signpicker.js"></script>
   <script defer src="exports.js"></script>
- <!-- Supabase client -->
+<!-- Supabase client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  // 🔑 Supabase Settings → API
+  // 🔑 Supabase
   const SUPABASE_URL = "https://lamfziqoecpzoixownin.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhbWZ6aXFvZWNwem9peG93bmluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyMzAyMzksImV4cCI6MjA3NDgwNjIzOX0.e0AsWZoDiunvycziMRBWbgjf0UMUg6qB3w4JRLdKUUc";
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // 👇 δημόσιο URL backend (Render)
+  // 🔗 Backend
   const BACKEND_URL = "https://grs-backend-gtgm.onrender.com";
 
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true }
-  });
+  // Helpers
+  function showLogin(){ document.getElementById('loginOverlay').style.display = 'flex'; }
+  function hideLogin(){ document.getElementById('loginOverlay').style.display = 'none'; }
 
-  const overlay = () => document.getElementById('loginOverlay');
-  function showLogin(){ overlay().style.display = 'flex'; }
-  function hideLogin(){ overlay().style.display = 'none'; }
-
-  // ✅ ΛΥΣΗ Α: ΠΑΝΤΑ ζητάει login — κάνουμε signOut στο boot
+  // ΠΑΝΤΑ ζητάει login στο άνοιγμα
   async function boot(){
     try { await supabase.auth.signOut(); } catch(e){}
     showLogin();
   }
-  document.addEventListener('DOMContentLoaded', boot);
 
-  // ---- Login flow
-  async function doLogin() {
-    const email = document.getElementById('loginEmail').value;
+  // Login flow
+  async function doLogin(){
+    const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPass').value;
     const msg = document.getElementById('loginMsg');
     msg.textContent = "Σύνδεση...";
+
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
+    if (error){
       msg.textContent = "Αποτυχία: " + error.message;
-    } else {
-      msg.textContent = "✅ Επιτυχής σύνδεση";
-      hideLogin();
+      return;
     }
+    msg.textContent = "✅ Επιτυχής σύνδεση";
+    hideLogin();
   }
-  document.getElementById('loginBtn').addEventListener('click', doLogin);
 
-  // (Προαιρετικό) global logout helper, αν το καλέσεις από κάπου στο UI
-  window.logout = async () => { await supabase.auth.signOut(); showLogin(); };
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('loginBtn').addEventListener('click', doLogin);
+    boot();
+  });
 
-  // ---- Παράδειγμα κλήσης backend
+  // Παράδειγμα κλήσης backend
   async function exportToServer(payload) {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { alert("Login first!"); return; }
+    if (!session) { alert("Login first!"); showLogin(); return; }
 
     const res = await fetch(`${BACKEND_URL}/api/export`, {
       method: "POST",
@@ -567,8 +565,8 @@
     });
 
     if (!res.ok) {
-      const txt = await res.text().catch(()=>`HTTP ${res.status}`);
-      alert(txt);
+      const txt = await res.text().catch(() => "(no body)");
+      alert(txt || `HTTP ${res.status}`);
       return;
     }
 
@@ -580,7 +578,11 @@
     a.click();
     URL.revokeObjectURL(url);
   }
+
+  // Προσωρινά για δοκιμές από κονσόλα:
+  window.logout = async () => { await supabase.auth.signOut(); showLogin(); };
 </script>
+
 
 
 </body>
