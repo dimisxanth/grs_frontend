@@ -441,12 +441,22 @@ window.closeDamageModal = window.closeDamageModal || closeDamageModal;
   if (pNew)  pNew.hidden  =  isCont;
   (isCont ? btnCont : routeInput)?.focus();
 
-  // reset "Όρισε όνομα" όταν πάμε σε Νέα εργασία
-  if (!isCont){ // which === 'new'
-    try { localStorage.removeItem('sessionCustomCategoryLabel'); } catch {}
-    try { window.applySessionCustomLabelToButton?.(); } catch {}
+  // 👉 Αν πάμε σε "Συνέχιση": φόρτωσε μία φορά τα markers από το localStorage
+  if (isCont){
+    try {
+      if (!window._continuedOnce) {
+        window.loadFromLocal?.();               // διαβάζει "damageMarkers" & ξαναστήνει τους δείκτες
+        // προαιρετικά: γέμισε και την κατεύθυνση από το last route
+        const lastRoute = localStorage.getItem('routeDirection') || '';
+        const inp = document.getElementById('routeDirection');
+        if (inp && !inp.value) inp.value = lastRoute;
+
+        window._continuedOnce = true;           // μην τα ξαναφορτώσεις αν αλλάξει ξανά tab
+      }
+    } catch(e) { console.warn('Continue/loadFromLocal:', e); }
   }
 }
+
 
 function loadLastSessionInfo(){
   let route='–', cnt=0, when='—';
