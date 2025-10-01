@@ -514,46 +514,41 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   const SUPABASE_URL = "https://lamfziqoecpzoixownin.supabase.co";
-  const SUPABASE_ANON_KEY = "…";
+  const SUPABASE_ANON_KEY = "ΒΑΛΕ_ΕΔΩ_ΤΟ_ΠΡΑΓΜΑΤΙΚΟ_ANON_KEY_SOU";
   const supabase = window.supabase.createClient(
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
     { auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage } }
   );
 
-
-  // 🔗 Backend
   const BACKEND_URL = "https://grs-backend-gtgm.onrender.com";
 
-  // Helpers
   function showLogin(){ document.getElementById('loginOverlay').style.display = 'flex'; }
   function hideLogin(){ document.getElementById('loginOverlay').style.display = 'none'; }
 
-  // ΠΑΝΤΑ ζητάει login στο άνοιγμα
-  async function boot(){
-    try { await supabase.auth.signOut(); } catch(e){}
-    showLogin();
-  }
-
-  // Login flow
   async function doLogin(){
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPass').value;
     const msg = document.getElementById('loginMsg');
     msg.textContent = "Σύνδεση...";
-
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error){
-      msg.textContent = "Αποτυχία: " + error.message;
-      return;
-    }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error){ msg.textContent = "Αποτυχία: " + error.message; return; }
     msg.textContent = "✅ Επιτυχής σύνδεση";
-    hideLogin();
+    // onAuthStateChange θα κρύψει το overlay
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
+    // κουμπί login
     document.getElementById('loginBtn').addEventListener('click', doLogin);
-    boot();
+
+    // 1) Στην αρχή δες αν υπάρχει session και δείξε/κρύψε overlay
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) hideLogin(); else showLogin();
+
+    // 2) Άκου αλλαγές κατάστασης και δείξε/κρύψε αντίστοιχα
+    supabase.auth.onAuthStateChange((_event, sess) => {
+      if (sess) hideLogin(); else showLogin();
+    });
   });
 
   // Παράδειγμα κλήσης backend
@@ -585,9 +580,10 @@
     URL.revokeObjectURL(url);
   }
 
-  // Προσωρινά για δοκιμές από κονσόλα:
-  window.logout = async () => { await supabase.auth.signOut(); showLogin(); };
+  // Προαιρετικό για δοκιμές: logout από κονσόλα
+  window.logout = async () => { await supabase.auth.signOut(); };
 </script>
+
 
 
 
