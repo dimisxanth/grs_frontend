@@ -50,7 +50,20 @@
 
 
 </head>
+
 <body>
+
+<!-- Fullscreen login overlay -->
+<div id="loginOverlay" style="position:fixed;inset:0;background:#0b1220;color:#fff;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;z-index:5000;">
+  <h2 style="margin:0 0 6px 0;">Σύνδεση</h2>
+  <input id="loginEmail" type="email" placeholder="Email"
+         style="margin:0;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:#0f172a;color:#fff;width:260px;"/>
+  <input id="loginPass" type="password" placeholder="Password"
+         style="margin:0;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:#0f172a;color:#fff;width:260px;"/>
+  <button id="loginBtn" style="margin-top:4px;padding:10px 22px;border-radius:10px;border:none;background:#22c55e;color:#0a0a0a;font-weight:700;cursor:pointer;">Login</button>
+  <small id="loginMsg" style="opacity:.85;"></small>
+</div>
+
 
   <div id="map"></div>
   <video id="cameraPreview" autoplay muted playsinline
@@ -463,7 +476,6 @@
 
 
 
-
       <!-- Footer -->
       <div class="modal-buttons">
         <button id="btnDamageCancel" class="btn-secondary">Άκυρο</button>
@@ -499,16 +511,75 @@
   <!-- Supabase client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// 🔑 ΔΙΚΑ ΣΟΥ (όπως τα έχουμε ήδη)
-const SUPABASE_URL = "https://lamfziqoecpzoixownin.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhbWZ6aXFvZWNwem9peG93bmluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyMzAyMzksImV4cCI6MjA3NDgwNjIzOX0.e0AsWZoDiunvycziMRBWbgjf0UMUg6qB3w4JRLdKUUc";
+  // 🔑 Supabase Settings → API
+  const SUPABASE_URL = "https://lamfziqoecpzoixownin.supabase.co";  // Project URL
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhbWZ6aXFvZWNwem9peG93bmluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyMzAyMzksImV4cCI6MjA3NDgwNjIzOX0.e0AsWZoDiunvycziMRBWbgjf0UMUg6qB3w4JRLdKUUc";
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Δημιουργία client
-window.supabase = window.supabase || {};
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // ⬇️ Βάλε εδώ το ΔΗΜΟΣΙΟ URL του backend (HTTPS, όχι localhost)
+  // Παράδειγμα: "https://grs-backend.onrender.com"
+  const BACKEND_URL = "https://grs-backend-gtgm.onrender.com";
 
-// 🌐 Backend URL (Render)
-window.BACKEND_URL = "https://grs-backend-gtgm.onrender.com";
+  // ===== Overlay Login =====
+  async function doLogin() {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPass').value;
+    const msg = document.getElementById('loginMsg');
+    msg.textContent = "Σύνδεση...";
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      msg.textContent = "Αποτυχία: " + error.message;
+    } else {
+      msg.textContent = "✅ Επιτυχής σύνδεση";
+      document.getElementById('loginOverlay').style.display = "none";
+    }
+  }
+  document.getElementById('loginBtn').addEventListener('click', doLogin);
+
+  // Κρύψε overlay αν υπάρχει ήδη session
+  (async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) document.getElementById('loginOverlay').style.display = "none";
+  })();
+  // Δείξε/κρύψε overlay σε login/logout
+  supabase.auth.onAuthStateChange((_e, session) => {
+    document.getElementById('loginOverlay').style.display = session ? 'none' : 'flex';
+  });
+
+  // ===== Παράδειγμα κλήσης backend API =====
+  async function exportToServer(payload) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      alert("Login first!");
+      return;
+    }
+
+    console.log("Export call →", BACKEND_URL);
+
+    const res = await fetch(`${BACKEND_URL}/api/export`, {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer " + session.access_token,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify(payload)
+});
+
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "(no body)");
+      alert(txt || `HTTP ${res.status}`);
+      return;
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "export.png";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 </script>
 
 </body>
