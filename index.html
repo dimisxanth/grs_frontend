@@ -508,42 +508,32 @@
   <script defer src="ui.js"></script>
   <script defer src="signpicker.js"></script>
   <script defer src="exports.js"></script>
-  <!-- Supabase client -->
+ <!-- Supabase client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+  // 🔑 Supabase Settings → API
   const SUPABASE_URL = "https://lamfziqoecpzoixownin.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhbWZ6aXFvZWNwem9peG93bmluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyMzAyMzksImV4cCI6MjA3NDgwNjIzOX0.e0AsWZoDiunvycziMRBWbgjf0UMUg6qB3w4JRLdKUUc";
+
+  // 👇 δημόσιο URL backend (Render)
+  const BACKEND_URL = "https://grs-backend-gtgm.onrender.com";
+
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: true, autoRefreshToken: true }
   });
-
-  const BACKEND_URL = "https://grs-backend-gtgm.onrender.com";
 
   const overlay = () => document.getElementById('loginOverlay');
   function showLogin(){ overlay().style.display = 'flex'; }
   function hideLogin(){ overlay().style.display = 'none'; }
 
-  function isSessionValid(session){
-    if (!session || !session.user) return false;
-    // Supabase v2: expires_at = epoch seconds. Βάζουμε και ένα μικρό περιθώριο 15”
-    const expMs = (session.expires_at || 0) * 1000;
-    return expMs - 15000 > Date.now();
-  }
-
+  // ✅ ΛΥΣΗ Α: ΠΑΝΤΑ ζητάει login — κάνουμε signOut στο boot
   async function boot(){
-    // ΞΕΚΙΝΑΜΕ πάντα δείχνοντας overlay για να μην φανεί flicker του χάρτη
+    try { await supabase.auth.signOut(); } catch(e){}
     showLogin();
-    const { data:{ session } } = await supabase.auth.getSession();
-    if (isSessionValid(session)) {
-      hideLogin();
-    } else {
-      // Αν υπάρχει session αλλά έληξε, καθάρισε
-      if (session) { try { await supabase.auth.signOut(); } catch(e){} }
-      showLogin();
-    }
   }
   document.addEventListener('DOMContentLoaded', boot);
 
+  // ---- Login flow
   async function doLogin() {
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPass').value;
@@ -559,12 +549,14 @@
   }
   document.getElementById('loginBtn').addEventListener('click', doLogin);
 
-  // (Προαιρετικό) logout helper
+  // (Προαιρετικό) global logout helper, αν το καλέσεις από κάπου στο UI
   window.logout = async () => { await supabase.auth.signOut(); showLogin(); };
 
+  // ---- Παράδειγμα κλήσης backend
   async function exportToServer(payload) {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!isSessionValid(session)) { alert("Login first!"); return; }
+    if (!session) { alert("Login first!"); return; }
+
     const res = await fetch(`${BACKEND_URL}/api/export`, {
       method: "POST",
       headers: {
@@ -573,10 +565,19 @@
       },
       body: JSON.stringify(payload)
     });
-    if (!res.ok) { alert(await res.text().catch(()=>`HTTP ${res.status}`)); return; }
+
+    if (!res.ok) {
+      const txt = await res.text().catch(()=>`HTTP ${res.status}`);
+      alert(txt);
+      return;
+    }
+
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = "export.png"; a.click();
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "export.png";
+    a.click();
     URL.revokeObjectURL(url);
   }
 </script>
