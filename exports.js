@@ -341,20 +341,45 @@ function buildPushpinStylesKml(){
    ΕΞΑΓΩΓΕΣ KML/KMZ με σωστά χρώματα & Κατάσταση
 =========================== */
 
-// ---------- Excel export ----------
+/// ---------- Excel export ----------
 function exportToExcel(){
   try{
     if (typeof XLSX === 'undefined') {
       alert('Η βιβλιοθήκη XLSX δεν φορτώθηκε.');
       return;
     }
+
+    // Helper: ασφαλές όνομα αρχείου (κρατά ελληνικά & κενά)
+    const safeFilenameKeepSpaces = (s) => {
+      try {
+        return (s ?? '')
+          .toString()
+          .normalize('NFKC')
+          .replace(/[<>:"/\\|?*\u0000-\u001F]/g, ' ') // απαγορευμένοι FS χαρακτήρες
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 80) || 'Καταγραφές';
+      } catch {
+        return 'Καταγραφές';
+      }
+    };
+
+    const allMarkers = (window.damageMarkers || []);
     const grouped = {};
-    (damageMarkers || []).forEach(m => {
+
+    allMarkers.forEach(m => {
       const r = m?.options?.data || {};
       (grouped[r.category || 'Χωρίς Κατηγορία'] ||= []).push(r);
     });
+
     const wb = XLSX.utils.book_new();
     let sheetCount = 0;
+    let sheetsAdded = 0;
+
+    const statusGR = (typeof window.statusGR === 'function' ? window.statusGR : (s=>s));
+    const normalizeStatus = (typeof window.normalizeStatus === 'function' ? window.normalizeStatus : (s => s || 'new'));
+    const getDir = (typeof window.getDirectionText === 'function' ? window.getDirectionText : ()=>'');
+    const safeSheetName = (t) => (t && typeof t === 'string') ? t.slice(0,31) : ('Φύλλο ' + (++sheetCount));
 
     const catOrder = Object.keys(grouped);
     catOrder.forEach(cat => {
@@ -374,33 +399,50 @@ function exportToExcel(){
         r.description || '',
         r.lat ?? '', r.lng ?? '',
         r.date || '', r.time || '',
-        window.statusGR(window.normalizeStatus(r.status||'new')),
+        statusGR(normalizeStatus(r.status||'new')),
         `https://maps.google.com/?q=${r.lat},${r.lng}`
       ]);
 
       const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
       ws['!cols'] = headers.map(h => ({ wch: Math.max(String(h).length + 2, 12) }));
 
-      // Hyperlink στην τελευταία στήλη (Google Maps)
-      const linkCol = headers.length - 1;
-      rows.forEach((r, idx) => {
-        const cellRef = XLSX.utils.encode_cell({ r: idx + 1, c: linkCol });
-        const url = `https://maps.google.com/?q=${r.lat},${r.lng}`;
-        if (!ws[cellRef]) ws[cellRef] = { t: 's', v: '' };
-        ws[cellRef].l = { Target: url, Tooltip: r.seqLabel || r.category || '' };
-      });
+     // Hyperlink στην τελευταία στήλη (Google Maps)
+const linkCol = headers.length - 1;
+rows.forEach((r, idx) => {
+  const cellRef = XLSX.utils.encode_cell({ r: idx + 1, c: linkCol });
+  const url = `https://maps.google.com/?q=${r.lat},${r.lng}`;
+  const label = r.seqLabel || r.category || 'link';
+  ws[cellRef] = { t: 's', v: label, l: { Target: url, Tooltip: url } };
+});
 
-      const safeName = (cat && typeof cat === 'string') ? cat.slice(0,31) : ('Φύλλο ' + (++sheetCount));
-      XLSX.utils.book_append_sheet(wb, ws, safeName || ('Φύλλο ' + (++sheetCount)));
+
+      XLSX.utils.book_append_sheet(wb, ws, safeSheetName(cat));
+      sheetsAdded++;
     });
 
-    const __d = (typeof getDirectionText==='function' ? getDirectionText() : '');
-    const fname = ( __d ? safeFilenameKeepSpaces(__d) : 'Καταγραφές') + '.xlsx';
+    // Αν δεν προστέθηκε κανένα φύλλο, βγάλε ένα ελάχιστο με headers
+    if (!sheetsAdded){
+      const headers = [
+        'Κωδικός','Κατεύθυνση','Κατηγορία','Ποσότητα','Κλάδος','Δ.Π.Π.',
+        'Περιγραφή','Γεωγρ. Πλάτος','Γεωγρ. Μήκος','Ημερομηνία','Ώρα','Κατάσταση','Google Maps Link'
+      ];
+      const ws = XLSX.utils.aoa_to_sheet([
+        headers,
+        ['—', getDir() || '', '—', '', '', '', 'Καμία καταγραφή', '', '', '', '', '', '']
+      ]);
+      ws['!cols'] = headers.map(h => ({ wch: Math.max(String(h).length + 2, 12) }));
+      XLSX.utils.book_append_sheet(wb, ws, safeSheetName('Καταγραφές'));
+    }
+
+    const d = getDir() || 'Καταγραφές';
+    const fname = safeFilenameKeepSpaces(d) + '.xlsx';
     XLSX.writeFile(wb, fname);
+
   }catch(e){
     alert('Σφάλμα κατά την εξαγωγή Excel: ' + (e?.message||e));
   }
 }
+
 
 // ---------- KML export ----------
 function exportToKML(){
