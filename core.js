@@ -292,73 +292,129 @@ function addRecordAsMarker(r){
 
 // ===== STORAGE =====
 function saveToLocal(){
-  const data = (window.damageMarkers || []).map(m=>({ ...m.options.data }));
-  try { localStorage.setItem("damageMarkers", JSON.stringify(data)); } catch {}
-  saveCounters();
+  try{
+    const data = (window.damageMarkers || [])
+      .map(m => m?.options?.data)
+      .filter(Boolean);
+    localStorage.setItem("damageMarkers", JSON.stringify(data));
+  }catch(e){ console.warn('saveToLocal error:', e); }
+  try{ saveCounters?.(); }catch{}
 }
+
 function hasSavedData(){
-  try { const d = JSON.parse(localStorage.getItem('damageMarkers')||'[]'); return Array.isArray(d) && d.length>0; } catch { return false; }
+  try {
+    const d = JSON.parse(localStorage.getItem('damageMarkers') || '[]');
+    return Array.isArray(d) && d.length > 0;
+  } catch { return false; }
 }
+
 function loadFromLocal(){
-  loadCounters();
-  const data = JSON.parse(localStorage.getItem("damageMarkers") || "[]");
+  // 0) counters
+  try{ loadCounters?.(); }catch{}
 
-  // Backfill numbering for legacy entries without seq
-  const localCounters = { ...window.categoryCounters };
+  // 1) διάβασμα ασφαλώς
+  let data = [];
+  try {
+    data = JSON.parse(localStorage.getItem("damageMarkers") || "[]") || [];
+  } catch(e){
+    console.warn('loadFromLocal: parse error', e);
+    return 0;
+  }
 
+  // 2) layer & καθάρισμα τρεχόντων
+  try{
+    if (!window.markerLayer && window.L && window.map){
+      window.markerLayer = L.layerGroup().addTo(window.map);
+    }
+    (window.damageMarkers || []).forEach(m => {
+      try{
+        if (m.remove) m.remove();
+        else if (window.map && m._leaflet_id) window.map.removeLayer(m);
+      }catch{}
+    });
+    window.damageMarkers = [];
+    if (window.markerLayer?.clearLayers) window.markerLayer.clearLayers();
+  }catch(e){ console.warn('clear markers failed', e); }
+
+  // 3) backfill numbering (legacy)
+  const localCounters = { ...(window.categoryCounters || {}) };
   const ensureSeq = (rec) => {
     if (Number.isFinite(rec.seqNum)) return rec;
     const next = (localCounters[rec.category] || 0) + 1;
     localCounters[rec.category] = next;
-    rec.seqNum = next;
+    rec.seqNum  = next;
     rec.seqCode = pad3(next);
     rec.seqLabel = `${rec.category} ${rec.seqCode}`;
     return rec;
   };
 
-  data.forEach(r => {
-    r = ensureSeq(r);
+  // 4) ανασύσταση markers
+  const group = (window.L && L.featureGroup) ? L.featureGroup() : null;
+  if (group && window.map) group.addTo(window.map);
 
-    r.status = (window.normalizeStatus ? window.normalizeStatus(r.status || 'old') : (r.status || 'old'));
+  const normStatus = (s)=> (window.normalizeStatus ? window.normalizeStatus(s || 'old') : (s || 'old'));
+
+  data.forEach(_r => {
+    const r = ensureSeq({ ..._r });
+    r.status = normStatus(r.status);
+
+    if (typeof r.lat !== 'number' || typeof r.lng !== 'number') return;
+
     const m = L.marker([r.lat, r.lng], { icon: L.divIcon({className:'cat-pin', html:''}) })
       .addTo(window.markerLayer)
-      .bindTooltip(r.seqLabel || r.category, { permanent: true, direction: "right" });
+      .bindTooltip(r.seqLabel || r.category || '', { permanent: true, direction: "right" });
 
-   {
-  const isSmall = (innerWidth < 900) || (innerHeight < 700);
-  m.bindPopup(buildPopupHTML(r), {
-    className: 'popup-card' + (isSmall ? ' popup-compact' : ''),
-    maxWidth: isSmall ? 280 : 320,
-    autoPanPadding: isSmall ? [10,10] : [16,16],
-    keepInView: true
-  });
-}
+    // Popup (compact σε μικρές οθόνες)
+    {
+      const isSmall = (innerWidth < 900) || (innerHeight < 700);
+      m.bindPopup(buildPopupHTML(r), {
+        className: 'popup-card' + (isSmall ? ' popup-compact' : ''),
+        maxWidth: isSmall ? 280 : 320,
+        autoPanPadding: isSmall ? [10,10] : [16,16],
+        keepInView: true
+      });
+    }
 
+    // 🔴 κρίσιμο: δέσε τα δεδομένα στον marker για μελλοντικό save
+    if (!m.options) m.options = {};
+    m.options.data = r;
 
-    try { m.setZIndexOffset(2000); } catch { console.warn('Caught error in core.js'); }
+    try { m.setZIndexOffset?.(2000); } catch {}
     m.on('click', () => m.openPopup());
 
     window.damageMarkers.push(m);
+    if (group) group.addLayer(m);
   });
 
+  // 5) counters & fit
   window.categoryCounters = localCounters;
-  saveCounters();
-  saveToLocal();
-  window.redoStack.length = 0;
+  try{ saveCounters?.(); }catch{}
+  try{
+    if (group && group.getLayers().length && window.map){
+      window.map.fitBounds(group.getBounds(), { padding:[30,30] });
+    }
+  }catch{}
+
+  // 6) UI "Τελευταία συνεδρία" & Κατεύθυνση
+  try{
+    const route = localStorage.getItem('routeDirection') || '';
+    const when  = localStorage.getItem('lastSessionDate') || '—';
+    const cnt   = (window.damageMarkers || []).length;
+    const lastInfo = document.getElementById('lastSessionInfo');
+    if (lastInfo){
+      lastInfo.textContent = `Κατεύθυνση: ${route || '–'} · Σημεία: ${cnt} · Ημ/νία: ${when}`;
+    }
+    const inp = document.getElementById('routeDirection');
+    if (inp && !inp.value) inp.value = route;
+  }catch{}
+
+  // 7) ξανασώσε (τώρα που έχουν options.data) & καθάρισε redo
+  try{ saveToLocal(); }catch{}
+  if (window.redoStack) window.redoStack.length = 0;
+
+  return (window.damageMarkers || []).length;
 }
 
-
-
-// === Status utility ===
-window.setMarkerStatus = window.setMarkerStatus || function(m, newStatus){
-  if (!m) return;
-  const s = (window.normalizeStatus ? window.normalizeStatus(newStatus) : (newStatus || 'new'));
-  m.options = m.options || {};
-  m.options.data = m.options.data || {};
-  m.options.data.status = s;
-  try { window.applyMarkerSettings && window.applyMarkerSettings(m); } catch(e){}
-  try { saveToLocal && saveToLocal(); } catch(e){}
-};
 // --- Map init ---
 function initMap() {
   // Χάρτης (βελτιώσεις: preferCanvas για πολλούς δείκτες, worldCopyJump για ομαλό pan)
