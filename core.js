@@ -54,9 +54,6 @@ window.statusGR = window.statusGR || function(s){
 };
 
 
-// Direction modal helpers (fallbacks)
-window.openDirectionModal  = window.openDirectionModal  || function(){ try{ document.getElementById('directionModal')?.classList.add('show'); }catch{} };
-window.closeDirectionModal = window.closeDirectionModal || function(){ try{ document.getElementById('directionModal')?.classList.remove('show'); }catch{} };
 
 // --- Damage modal helpers ---
 window.closeDamageModal = window.closeDamageModal || function(){
@@ -981,30 +978,14 @@ window.refreshCategoryChecklist = buildCategoryChecklist;
   try { initMap?.(); } catch { console.warn('Caught error in core.js'); }
   try { requestLocation?.(); } catch { console.warn('Caught error in core.js'); }
 
-  // ===== Start flow (startModal + Direction) =====
-  (function(){
-    const startModal = qs('#startModal');
-    const btnNew = qs('#btnNewWork');
-    const btnCont = qs('#btnContinue');
-    const hasData = (typeof hasSavedData==='function' ? hasSavedData() : false);
+// === Start flow: Unified Work Modal ===
+(function(){
+  if (document.getElementById('workModal') && typeof window.openWorkModal === 'function') {
+    window.openWorkModal('auto'); // auto = αν έχεις ήδη κατεύθυνση -> Συνέχιση, αλλιώς Νέα
+    return;
+  }
+})();
 
-    if (startModal) {
-      startModal.classList.add('show');
-      if (btnCont) btnCont.disabled = !hasData;
-
-      if (btnNew) btnNew.addEventListener('click', ()=>{
-        try { resetAll?.(); } catch(e){ console.warn('resetAll failed', e); }
-        startModal.classList.remove('show');
-        try { window.openDirectionModal?.(); } catch(e){}
-      });
-
-      if (btnCont) btnCont.addEventListener('click', ()=>{
-        if (hasData) { try { loadFromLocal?.(); } catch(e){ console.warn('loadFromLocal failed', e); } }
-        startModal.classList.remove('show');
-        try { window.openDirectionModal?.(); } catch(e){}
-      });
-    }
-  })();
 
   // Top buttons
   qs('#btnRedo')?.addEventListener('click', redoLastDelete);
@@ -1068,13 +1049,7 @@ qsa('.bottom-buttons .btn[data-cat]')?.forEach(btn => {
       window.applySessionCustomLabelToButton?.();
       window.closeCustomNameModal?.();
 
-      if (window.currentMarker) {
-        // έχουμε GPS -> προχώρα στο modal καταγραφής
-        openDamageModal(val);
-      } else {
-        // δεν έχουμε GPS ακόμη: κράτα το όνομα και καθοδήγησε
-        alert('Το όνομα ορίστηκε. Πάτησε "🛰️ Εντοπισμός" για να ξεκινήσεις καταγραφή.');
-      }
+      openDamageModal(val);
     });
 
     btnCustomCancel.addEventListener('click', () => {
