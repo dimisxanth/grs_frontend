@@ -1086,3 +1086,15 @@ button, input, select, textarea { font-family:inherit; color:inherit; }
   max-height:none;   /* αντί για calc(82vh - 130px) */
   overflow:visible;
 }
+/* Sign Picker panel: επιτρέπουμε scroll στο panel */
+#signPickerPanel{
+  overflow: auto !important;              /* αντί για hidden */
+  max-height: 92vh !important;            /* λίγο “αέρας” για status bars */
+  -webkit-overflow-scrolling: touch;      /* ομαλό scroll σε κινητά */
+}
+
+/* Η εσωτερική λίστα ΔΕΝ έχει δικό της scroll */
+#signPickerPanel .sp-thumbs{
+  max-height: none !important;
+  overflow: visible !important;
+}
