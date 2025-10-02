@@ -248,9 +248,27 @@ function applyMarkerSettings(m){
 }
 
 function applyAllSettingsToAllMarkers(){
+  // 1) Markers (όπως πριν)
   (window.damageMarkers || []).forEach(applyMarkerSettings);
+
+  // 2) ✅ Polylines: απόκρυψη/εμφάνιση ανά group
+  try{
+    const hiddenGr = window.markerSettings?.hiddenGroups || new Set();
+    (window.routeItems || []).forEach(pl=>{
+      const d = pl?.options?.data || {};
+      const grpTop = String(d.group||'').split(/\s*\/\s*/)[0].trim();
+      const hide = hiddenGr.has(grpTop);
+
+      if (hide) {
+        if (pl._map) { try { pl.remove(); } catch{} }
+      } else {
+        if (!pl._map) { try { (window.routeLayer || window.map).addLayer(pl); } catch{} }
+      }
+    });
+  }catch(e){ console.warn('applyAllSettingsToAllMarkers (routes) failed', e); }
 }
 window.applyAllSettingsToAllMarkers = applyAllSettingsToAllMarkers;
+
 
 // Undo modal stubs (core may call closeUndoModal)
 function openUndoModal(){ try{ qs('#undoModal')?.classList.add('show'); } catch{} }
