@@ -862,7 +862,7 @@ button.btn:focus-visible, .btn:focus-visible, .btn-icon:focus-visible{
   backdrop-filter: blur(2px);
   z-index: -1; /* πίσω από το κουτί του modal */
 }
-.modal--wide { max-width: 720px; }
+.modal--wide { max-width: 520px; }
 .tabs { display:flex; gap:8px; margin:8px 0 12px; }
 .tab { padding:8px 12px; border-radius:10px; }
 .tab.is-active { background:var(--brand2); color:white; }
@@ -1023,12 +1023,7 @@ button, input, select, textarea { font-family:inherit; color:inherit; }
 .card .label{ color:var(--muted); }
 .card .value{ color:var(--text); }
 
-/* ---------------- Work Modal ειδικά ---------------- */
-#workModal .modal__body{
-  gap: var(--s-6);
-  min-height: var(--workPanelsMin, 220px); /* default 220px, αλλά θα ρυθμίζεται από JS */
-  overflow: auto; /* scroll στο σώμα αντί να σπρώχνει το footer */
-}
+
 
 #panel-new .field--full{ grid-column:1 / -1; }
 
@@ -1047,25 +1042,25 @@ button, input, select, textarea { font-family:inherit; color:inherit; }
 *::-webkit-scrollbar-thumb{ background:#c8d2e3; border-radius:10px; }
 *::-webkit-scrollbar-track{ background:transparent; }
 
-/* Work Modal: σταθερό layout header/body/footer */
+/* === WORK MODAL — SINGLE, COMPACT VERSION === */
 #workModal .modal-content{
-  min-height: 320px;
-  display: grid;
-  grid-template-rows: auto 1fr auto; /* header / body / footer */
+  display: flex;              /* header / body / footer κάθετα */
+  flex-direction: column;
+  padding: 12px;
+  min-height: auto;           /* όχι υποχρεωτικό ύψος */
+  max-height: 80vh;           /* κόφτης ασφαλείας */
+  width: min(520px, 92vw);    /* πιο «σφιχτό» πλάτος */
+  overflow: hidden;           /* scroll μόνο στο body */
 }
 
-/* Το σώμα παίρνει min-height από μεταβλητή που ρυθμίζει το JS */
 #workModal .modal__body{
-  gap: var(--s-6);
-  min-height: var(--workPanelsMin, 220px); /* default 220px */
-  overflow: auto; /* scroll στο σώμα, όχι στο footer */
+  flex: 0 0 auto;             /* παίρνει όσο χρειάζεται */
+  min-height: auto;           /* ΑΦΑΙΡΕΙ το var(--workPanelsMin, 220px) */
+  max-height: 60vh;           /* scroll αν μεγαλώσει */
+  overflow: auto;
+  gap: var(--s-4);
 }
 
-/* Δώσε το ίδιο min-height και στα ίδια τα panels (ώστε να μη “σπάνε”) */
-#workModal #panel-new,
-#workModal #panel-continue{
-  min-height: var(--workPanelsMin, 220px);
-}
 
 /* (ό,τι ήδη είχες) */
 #panel-new .field--full{ grid-column:1 / -1; }
