@@ -155,16 +155,15 @@ function parseDescField(desc, label){
 // ---------- KML ----------
 function parseKMLTextAndAddMarkers(text){
   const dom = new DOMParser().parseFromString(text, "text/xml");
-  const styleIndex = buildKmlStyleIndex(dom);
+  const styleIndex = buildKmlStyleIndex(dom); // για μελλοντική χρήση/χρώματα
   const placemarks = Array.from(dom.getElementsByTagName('Placemark'));
+
   placemarks.forEach(pm=>{
     const name = (pm.getElementsByTagName('name')[0]?.textContent||'').trim();
-    const coords = (pm.getElementsByTagName('coordinates')[0]?.textContent||'').trim().split(',');
-    const lng = +coords[0], lat = +coords[1];
     const desc = pm.getElementsByTagName('description')[0]?.textContent || '';
     const styleUrl = pm.getElementsByTagName('styleUrl')[0]?.textContent || '';
 
-    // derive group from ancestor Folder names
+    // group από γονικά Folder/Document
     let grp = '';
     try {
       let node = pm.parentNode, names = [];
@@ -177,10 +176,48 @@ function parseKMLTextAndAddMarkers(text){
       }
       grp = names.join(' / ');
     } catch(e) { grp = ''; }
-    // προτεραιότητα: description Κατάσταση -> styleUrl/icon -> default 'old'
+
+    // Προτεραιότητα status: description -> styleUrl -> default 'old'
     let statusRaw = parseDescField(desc, 'Κατάσταση');
     if (!statusRaw && styleUrl) statusRaw = inferStatusFromStyleObj(styleIndex[styleUrl]);
     const status = statusRaw ? window.normalizeStatus(statusRaw) : 'old';
+
+    // === [ΝΕΟ] Αν το Placemark έχει LineString -> σχεδίασε polyline ===
+    const ls = pm.getElementsByTagName('LineString')[0];
+    if (ls) {
+      const coordText = (ls.getElementsByTagName('coordinates')[0]?.textContent || '').trim();
+      // "lng,lat[,alt]" χωρισμένα με κενά/νέες γραμμές
+      const latlngs = coordText
+        .split(/\s+/)
+        .map(s => s.trim())
+        .filter(Boolean)
+        .map(s => {
+          const [lng, lat] = s.split(',').map(Number);
+          return [lat, lng];
+        })
+        .filter(([lat,lng]) => Number.isFinite(lat) && Number.isFinite(lng));
+
+      if (latlngs.length >= 2 && window.L && window.map) {
+        // διασφάλισε ότι υπάρχει routeLayer (σύμφωνα με core.js το φτιάχνουμε στο initMap)
+        if (!window.routeLayer) { window.routeLayer = L.layerGroup().addTo(window.map); }
+
+        const poly = L.polyline(latlngs, {
+          // default εμφάνιση — μπορείς να ρυθμίσεις κι από styleIndex εφόσον θέλεις
+          weight: 4,
+          opacity: 0.9
+        }).addTo(window.routeLayer);
+
+        if (name) poly.bindTooltip(name);
+
+        // Τέλος για αυτό το Placemark (μην πέσουμε στο flow του Point)
+        return;
+      }
+    }
+    // === [ΤΕΛΟΣ ΝΕΟΥ ΚΩΔΙΚΑ] ===
+
+    // ----- Point flow (ό,τι έκανε πριν) -----
+    const coords = (pm.getElementsByTagName('coordinates')[0]?.textContent||'').trim().split(',');
+    const lng = +coords[0], lat = +coords[1];
 
     const r = {
       seqLabel: name,
@@ -200,7 +237,17 @@ function parseKMLTextAndAddMarkers(text){
     };
     addRecordAsMarker(r);
   });
+
+  // ίδια μετα-βήματα όπως ήδη είχες στα imports
+  saveToLocal?.();
+  try {
+    window.refreshCategoryChecklist?.();
+    window.refreshGroupChecklist?.();
+    window.applyAllSettingsToAllMarkers?.();
+    window.rebindMarkerPopups?.();
+  } catch(e) {}
 }
+
 
 async function importFromKML(file){
   const text = await readFileAsText(file);
