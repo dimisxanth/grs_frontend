@@ -22,7 +22,14 @@
   <style>
     .chip{border:1px solid #cbd5e1;border-radius:999px;background:#fff;padding:6px 12px;cursor:pointer}
     .chip.is-active{background:#0ea5e9;color:#fff;border-color:#0ea5e9}
-    .sign-thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;max-height:40vh;overflow:auto}
+    .sign-thumbs{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(84px,1fr));
+  gap:8px;
+  max-height:none;        /* ← no internal scroller */
+  overflow:visible;       /* ← αφήνουμε το modal/page να κάνει scroll */
+}
+
     .sign-thumb{border:1px solid #e5e7eb;border-radius:10px;background:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px}
     .sign-thumb img{width:56px;height:56px;object-fit:contain}
     .sign-thumb .code{font-size:11px;text-align:center}
