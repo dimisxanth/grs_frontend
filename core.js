@@ -1473,3 +1473,4 @@ qsa('.bottom-buttons .btn[data-cat]')?.forEach(btn => {
   });
   obs.observe( document.getElementById('damageModal') || document.body, { attributes:true, attributeFilter:['class'] });
 })();
+
