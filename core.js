@@ -144,6 +144,8 @@ window.applyDragMode = window.applyDragMode || function(m){
 if (typeof window.firstLocate === 'undefined') window.firstLocate = true;
 window.map              = window.map              || null;
 window.markerLayer      = window.markerLayer      || null;
+window.routeLayer       = window.routeLayer       || null;
+
 window.watchId          = window.watchId          || null;
 window.currentMarker    = window.currentMarker    || null;
 window.currentDamageMarker = window.currentDamageMarker || null;
@@ -334,6 +336,9 @@ function loadFromLocal(){
   try{
     if (!window.markerLayer && window.L && window.map){
       window.markerLayer = L.layerGroup().addTo(window.map);
+	 
+window.routeLayer = L.layerGroup().addTo(window.map);
+
     }
     (window.damageMarkers || []).forEach(m => {
       try{
@@ -836,6 +841,7 @@ function resetAll(){
     try { m.unbindPopup?.();   } catch {}
     try { m.remove?.(); } catch {}
     try { window.map.removeLayer(m); } catch {}
+	try { window.routeLayer?.clearLayers?.(); } catch {}
   });
   window.damageMarkers = [];
 
