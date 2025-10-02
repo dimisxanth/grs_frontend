@@ -1078,3 +1078,11 @@ button, input, select, textarea { font-family:inherit; color:inherit; }
   background: #f3f4f6;         /* ανοιχτό γκρι στο hover */
   color: #111827 !important;
 }
+#damageModal .sign-thumbs{
+  max-height:none;   /* override του 40vh */
+  overflow:visible;
+}
+#signPickerPanel .sp-thumbs{
+  max-height:none;   /* αντί για calc(82vh - 130px) */
+  overflow:visible;
+}
