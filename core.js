@@ -917,15 +917,21 @@ function buildGroupChecklist(){
   if(!box) return;
   box.innerHTML = '';
 
-  // Συλλογή μοναδικών top-level groups
+  // Συλλογή μοναδικών top-level groups από MARKERS
   const groupsSet = new Set(
     (window.damageMarkers || [])
       .map(m => String(m?.options?.data?.group || ''))
-      .map(grp => grp.split(/\s*\/\s*/)[0].trim()) // μόνο το πρώτο επίπεδο
+      .map(grp => grp.split(/\s*\/\s*/)[0].trim())
       .filter(Boolean)
   );
-  const groups = Array.from(groupsSet).sort((a,b)=>a.localeCompare(b,'el'));
 
+  // ✅ ΚΑΙ από POLYLINES (routeItems)
+  (window.routeItems || []).forEach(pl => {
+    const g = String(pl?.options?.data?.group || '').split(/\s*\/\s*/)[0].trim();
+    if (g) groupsSet.add(g);
+  });
+
+  const groups = Array.from(groupsSet).sort((a,b)=>a.localeCompare(b,'el'));
   groups.forEach(gr => {
     const id = 'grp_' + String(gr).replace(/\s+/g,'_');
     const pill = document.createElement('label');
@@ -942,6 +948,7 @@ function buildGroupChecklist(){
     box.appendChild(pill);
   });
 }
+
 window.refreshGroupChecklist = buildGroupChecklist;
 
 
