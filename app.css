@@ -1142,3 +1142,4 @@ button, input, select, textarea { font-family:inherit; color:inherit; }
   font-family: system-ui, sans-serif;
   letter-spacing: 0.5px;
 }
+.leaflet-top.leaflet-right { margin-top: 58px; }
