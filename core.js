@@ -461,8 +461,11 @@ window.routeLayer = L.layerGroup().addTo(window.map);
 function initMap() {
 	// ✅ Ενεργοποίηση TouchRotate handler (αν υπάρχει από το plugin)
 if (window.L && L.Map && L.Map.TouchRotate) {
-  L.Map.addInitHook('addHandler', 'touchRotate', L.Map.TouchRotate);
+  L.Map.addInitHook('addHandler','touchRotate', L.Map.TouchRotate);
+} else {
+  console.warn('Leaflet Rotate plugin missing -> no rotation gestures/controls');
 }
+
 
   // Χάρτης (βελτιώσεις: preferCanvas για πολλούς δείκτες, worldCopyJump για ομαλό pan)
   window.map = L.map('map', {
