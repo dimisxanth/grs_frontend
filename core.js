@@ -459,6 +459,11 @@ window.routeLayer = L.layerGroup().addTo(window.map);
 
 
 function initMap() {
+	// ✅ Ενεργοποίηση TouchRotate handler (αν υπάρχει από το plugin)
+if (window.L && L.Map && L.Map.TouchRotate) {
+  L.Map.addInitHook('addHandler', 'touchRotate', L.Map.TouchRotate);
+}
+
   // Χάρτης (βελτιώσεις: preferCanvas για πολλούς δείκτες, worldCopyJump για ομαλό pan)
   window.map = L.map('map', {
     zoomControl: false,
@@ -703,7 +708,7 @@ function requestLocation() {
 
       } else {
         window.currentMarker.setLatLng([lat, lng]);
-        try { window.currentMarker.setZIndexOffset(1000); } catch { console.warn('Caught error in core.js'); }
+        try { window.currentMarker.setZIndexOffset(9999); } catch { console.warn('Caught error in core.js'); }
       }
 
       // Κύκλος ακρίβειας (με “κόφτη”)
