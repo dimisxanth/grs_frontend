@@ -458,14 +458,18 @@ window.routeLayer = L.layerGroup().addTo(window.map);
 }
 
 
-// --- Map init ---
 function initMap() {
   // Χάρτης (βελτιώσεις: preferCanvas για πολλούς δείκτες, worldCopyJump για ομαλό pan)
   window.map = L.map('map', {
     zoomControl: false,
     preferCanvas: true,
-    worldCopyJump: true
+    worldCopyJump: true,
+    // ✅ Προσθήκη περιστροφής
+    rotate: true,
+    touchRotate: true,
+    bearing: 0
   }).setView([40.64, 22.94], 17);
+
 
   // --- μέσα στη initMap(), ΟΛΟ το window.map.on('popupopen', ...) ---
   window.map.on('popupopen', (e) => {
@@ -553,6 +557,40 @@ try {
 
   // μετά τη δημιουργία του map
   window.map.on('dragstart zoomstart', () => setFollow(false));
+    // === Περιστροφή (controls επάνω δεξιά) ===
+  (function () {
+    if (!window.map || !window.map.setBearing) return;
+
+    const ROT_STEP = 15; // μοίρες ανά κλικ
+
+    const RotateControl = L.Control.extend({
+      options: { position: 'topright' },
+      onAdd: function () {
+        const container = L.DomUtil.create('div', 'leaflet-bar rotate-control');
+        container.innerHTML = `
+          <a class="rot-btn rot-left" title="Περιστροφή αριστερά (−${ROT_STEP}°)">↺</a>
+          <a class="rot-btn rot-right" title="Περιστροφή δεξιά (+${ROT_STEP}°)">⟲</a>
+          <a class="rot-btn rot-reset" title="Επαναφορά Βορρά (0°)">N</a>
+        `;
+
+        const stop = (e)=>{ e.preventDefault(); e.stopPropagation(); };
+        L.DomEvent.on(container, 'pointerdown mousedown dblclick', stop);
+
+        const left  = container.querySelector('.rot-left');
+        const right = container.querySelector('.rot-right');
+        const reset = container.querySelector('.rot-reset');
+
+        left.onclick  = ()=> window.map.setBearing(((window.map.getBearing() || 0) - ROT_STEP + 360) % 360);
+        right.onclick = ()=> window.map.setBearing(((window.map.getBearing() || 0) + ROT_STEP) % 360);
+        reset.onclick = ()=> window.map.setBearing(0);
+
+        return container;
+      }
+    });
+
+    window.map.addControl(new RotateControl());
+  })();
+
 
   // Κεντρικό layer για markers
   window.markerLayer = L.layerGroup().addTo(window.map);
@@ -626,12 +664,21 @@ try {
 let accuracyCircle = null;               // κύκλος ακρίβειας γύρω από το GPS
 const ACC_RADIUS_CAP = 30;               // μέγιστη ακτίνα κύκλου ακρίβειας (m)
 
+// scale του dot + παλμών χωρίς να χαλάμε anchors
+const LOC_SCALE = 1.20; // παίξε 1.6–2.0 ανάλογα το γούστο
+
 const myLocIcon = L.divIcon({
   className: 'my-loc-icon',
-  html: '<div class="pulse-pin"><div class="pulse-shadow"></div></div>',
-  iconSize: [18, 18],
-  iconAnchor: [9, 9] // κέντρο πάνω στο σημείο
+  html: `
+    <div class="loc-halo"></div>
+    <div class="pulse-pin" style="transform:scale(${LOC_SCALE});transform-origin:center;">
+      <div class="pulse-shadow"></div>
+    </div>
+  `,
+  iconSize: [18, 18],          // βασικό μέγεθος (κλιμακώνουμε με CSS transform)
+  iconAnchor: [9, 9]           // κεντράρισμα στο σημείο
 });
+
 
 function requestLocation() {
   if (!('geolocation' in navigator)) {
@@ -652,7 +699,8 @@ function requestLocation() {
       // Δημιούργησε ή ενημέρωσε τον marker τρέχουσας θέσης
       if (!window.currentMarker) {
         window.currentMarker = L.marker([lat, lng], { icon: myLocIcon }).addTo(window.markerLayer);
-        try { window.currentMarker.setZIndexOffset(1000); } catch { console.warn('Caught error in core.js'); }
+        try { window.currentMarker.setZIndexOffset(9999); } catch { console.warn('Caught error in core.js'); }
+
       } else {
         window.currentMarker.setLatLng([lat, lng]);
         try { window.currentMarker.setZIndexOffset(1000); } catch { console.warn('Caught error in core.js'); }
@@ -678,7 +726,10 @@ function requestLocation() {
       // Κεντράρισμα / Follow
       if (window.firstLocate) {
         window.firstLocate = false;
-        try { window.map.setView([lat, lng], window.map.getZoom(), { animate: true }); } catch { console.warn('Caught error in core.js'); }
+        try {
+  window.map.setView([lat, lng], window.map.getZoom() || 16, { animate: true });
+} catch { console.warn('Caught error in core.js'); }
+
       } else if (window.followUser) {
         // πιο «μαλακό» από setView, δεν αλλάζει zoom
         window.map.panTo([lat, lng], { animate: true });
@@ -1473,4 +1524,3 @@ qsa('.bottom-buttons .btn[data-cat]')?.forEach(btn => {
   });
   obs.observe( document.getElementById('damageModal') || document.body, { attributes:true, attributeFilter:['class'] });
 })();
-
