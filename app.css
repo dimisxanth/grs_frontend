@@ -1098,3 +1098,47 @@ button, input, select, textarea { font-family:inherit; color:inherit; }
   max-height: none !important;
   overflow: visible !important;
 }
+/* === Fancy "My Location" upgrades === */
+.leaflet-marker-pane .my-loc-icon{
+  z-index: 9999 !important;   /* να είναι πάντα πάνω απ’ όλα */
+  pointer-events: none;        /* να μην εμποδίζει clicks */
+}
+
+/* Φωτεινό halo πίσω από το dot */
+.my-loc-icon{ position: relative; }
+.my-loc-icon .loc-halo{
+  position:absolute; left:50%; top:50%;
+  width:72px; height:72px; transform:translate(-50%, -58%);
+  background: radial-gradient(circle, rgba(14,165,233,.45) 0%, rgba(14,165,233,0) 60%);
+  mix-blend-mode: screen; opacity:.85; border-radius:999px; pointer-events:none;
+}
+
+
+/* (προαιρετικό) λίγο πιο «δυνατός» παλμός χωρίς να τυφλώνει */
+.pulse-pin{
+  filter: drop-shadow(0 6px 18px rgba(14,165,233,.55));
+}
+/* === Περιστροφή χάρτη (controls) === */
+.leaflet-bar.rotate-control {
+  display: flex;
+  gap: 2px;
+}
+.leaflet-bar.rotate-control .rot-btn {
+  width: 34px;
+  height: 34px;
+  line-height: 34px;
+  text-align: center;
+  font-weight: 700;
+  text-decoration: none;
+  user-select: none;
+  background: #fff;
+  color: #0f172a;
+}
+.leaflet-bar.rotate-control .rot-btn:hover {
+  background: #0ea5e9;
+  color: #fff;
+}
+.leaflet-bar.rotate-control .rot-reset {
+  font-family: system-ui, sans-serif;
+  letter-spacing: 0.5px;
+}
