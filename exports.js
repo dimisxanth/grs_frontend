@@ -394,7 +394,8 @@ function buildPushpinStylesKml(){
         <Icon><href>${href}</href></Icon>
         <hotSpot x="0.5" y="0" xunits="fraction" yunits="fraction"/>
       </IconStyle>
-      <LabelStyle><scale>0.0</scale></LabelStyle>
+            <LabelStyle><scale>1.1</scale></LabelStyle>
+
     </Style>`;
   }).join('');
 }
@@ -510,34 +511,29 @@ rows.forEach((r, idx) => {
 function exportToKML(){
   if (typeof saveAs === 'undefined') { alert('Η saveAs() δεν είναι διαθέσιμη.'); return; }
 
+  // Μαζεύουμε όλα τα records από τους markers
   const allRecords = [];
   (damageMarkers || []).forEach(m => { const r = m?.options?.data; if (r) allRecords.push(r); });
 
-  let kml = '<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>';
-
-  // Styles: fixed για new/old/done
-  kml += buildPushpinStylesKml();
-
-  // Ομαδοποίηση: Κατηγορία -> Περιγραφή
-  const grouped = {};
+  // Group μόνο ανά Κατηγορία
+  const groupedByCat = {};
   allRecords.forEach(r => {
-    (grouped[r.category || 'Χωρίς Κατηγορία'] ||= []).push(r);
+    const cat = (r.category && String(r.category).trim()) ? r.category : 'Χωρίς Κατηγορία';
+    (groupedByCat[cat] ||= []).push(r);
   });
 
-  Object.entries(grouped).forEach(([cat, rows]) => {
-    kml += `<Folder><name>${cat}</name>`;
-    const sub = {};
+  // Header + Styles (LabelStyle ενεργό)
+  let kml = '<?xml version="1.0" encoding="UTF-8"?>'
+          + '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>';
+  kml += buildPushpinStylesKml();
+
+  // 🔹 Ένας <Folder> ανά Κατηγορία, χωρίς υπο-φακέλους
+  Object.entries(groupedByCat).forEach(([cat, rows]) => {
+    kml += `<Folder><name>${escapeXml(cat)}</name>`;
     rows.forEach(r => {
-      const key = (r.description && String(r.description).trim()) ? r.description : 'Χωρίς Περιγραφή';
-      (sub[key] ||= []).push(r);
-    });
-    Object.entries(sub).forEach(([desc, items]) => {
-      kml += `<Folder><name>${desc}</name>`;
-      items.forEach(r => {
-        const st = getStatusStyleInfo(r.status);
-        kml += placemarkXML(cat, r, st.id);
-      });
-      kml += `</Folder>`;
+      const st = getStatusStyleInfo(r.status);
+      // Το πρώτο arg (folderName) το αφήνουμε cat για συνέπεια με το placemarkXML
+      kml += placemarkXML(cat, r, st.id);
     });
     kml += `</Folder>`;
   });
@@ -553,6 +549,17 @@ function exportToKML(){
   saveAs(new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' }), __safe + '.kml');
 }
 
+// Μικρή βοηθητική για ασφαλή ονόματα φακέλων
+function escapeXml(s){
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&apos;');
+}
+
+
 // ---------- KMZ export ----------
 async function exportToKMZ(){
   if (typeof JSZip === 'undefined') { alert('Το JSZip δεν είναι διαθέσιμο.'); return; }
@@ -561,31 +568,26 @@ async function exportToKMZ(){
   const allRecords = [];
   (damageMarkers || []).forEach(m => { const r = m?.options?.data; if (r) allRecords.push(r); });
 
-  let kml = '<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>';
+  const groupedByCat = {};
+  allRecords.forEach(r => {
+    const cat = (r.category && String(r.category).trim()) ? r.category : 'Χωρίς Κατηγορία';
+    (groupedByCat[cat] ||= []).push(r);
+  });
+
+  let kml = '<?xml version="1.0" encoding="UTF-8"?>'
+          + '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>';
   kml += buildPushpinStylesKml();
 
-  const grouped = {};
-  allRecords.forEach(r => { (grouped[r.category || 'Χωρίς Κατηγορία'] ||= []).push(r); });
-
-  Object.entries(grouped).forEach(([cat, rows]) => {
-    kml += `<Folder><name>${cat}</name>`;
-    const sub = {};
+  Object.entries(groupedByCat).forEach(([cat, rows]) => {
+    kml += `<Folder><name>${escapeXml(cat)}</name>`;
     rows.forEach(r => {
-      const key = (r.description && String(r.description).trim()) ? r.description : 'Χωρίς Περιγραφή';
-      (sub[key] ||= []).push(r);
-    });
-    Object.entries(sub).forEach(([desc, items]) => {
-      kml += `<Folder><name>${desc}</name>`;
-      items.forEach(r => {
-        const st = getStatusStyleInfo(r.status);
-        kml += placemarkXML(cat, r, st.id);
-      });
-      kml += `</Folder>`;
+      const st = getStatusStyleInfo(r.status);
+      kml += placemarkXML(cat, r, st.id);
     });
     kml += `</Folder>`;
   });
 
-  kml += `</Document></kml>`;
+  kml += '</Document></kml>';
 
   const __d = (typeof getDirectionText === 'function' ? getDirectionText() : '');
   const __base = (__d ? __d : 'Καταγραφές');
@@ -598,6 +600,7 @@ async function exportToKMZ(){
   const blob = await zip.generateAsync({ type:'blob', compression:'DEFLATE' });
   saveAs(blob, __safe + '.kmz');
 }
+
 
 // placemark με styleUrl + ρητή “Κατάσταση” στο description
 function placemarkXML(cat, r, styleId){
