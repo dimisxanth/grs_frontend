@@ -148,6 +148,7 @@ window.routeLayer       = window.routeLayer       || null;
 
 window.watchId          = window.watchId          || null;
 window.currentMarker    = window.currentMarker    || null;
+window.lockCurrentLoc = window.lockCurrentLoc || false;
 window.currentDamageMarker = window.currentDamageMarker || null;
 window.damageMarkers    = window.damageMarkers    || [];
 window.redoStack        = window.redoStack        || [];
@@ -311,6 +312,21 @@ function saveToLocal(){
 
   try{ saveCounters?.(); }catch{}
 }
+// Κοινό helper: όταν τελειώνει το drag, γράψε νέες συντεταγμένες και σώσε
+function wireDragPersist(m){
+  try {
+    m.on && m.on('dragend', () => {
+      try {
+        const ll = m.getLatLng();
+        m.options = m.options || {};
+        m.options.data = m.options.data || {};
+        m.options.data.lat = Number(ll.lat);
+        m.options.data.lng = Number(ll.lng);
+        saveToLocal?.();
+      } catch(e){ console.warn('drag persist failed', e); }
+    });
+  } catch(e){ console.warn('wireDragPersist failed', e); }
+}
 
 function hasSavedData(){
   try {
@@ -380,7 +396,7 @@ window.routeLayer = L.layerGroup().addTo(window.map);
     const m = L.marker([r.lat, r.lng], { icon: L.divIcon({className:'cat-pin', html:''}) })
       .addTo(window.markerLayer)
       .bindTooltip(r.seqLabel || r.category || '', { permanent: true, direction: "right" });
-
+try { wireDragPersist(m); } catch {}
     // Popup (compact σε μικρές οθόνες)
     {
       const isSmall = (innerWidth < 900) || (innerHeight < 700);
@@ -423,6 +439,7 @@ window.routeLayer = L.layerGroup().addTo(window.map);
 
     try { m.setZIndexOffset?.(2000); } catch {}
     m.on('click', () => m.openPopup());
+try { wireDragPersist(m); } catch {}
 
     window.damageMarkers.push(m);
     if (group) group.addLayer(m);
@@ -705,14 +722,30 @@ function requestLocation() {
       const { latitude: lat, longitude: lng, accuracy = 0 } = pos.coords;
 
       // Δημιούργησε ή ενημέρωσε τον marker τρέχουσας θέσης
-      if (!window.currentMarker) {
-        window.currentMarker = L.marker([lat, lng], { icon: myLocIcon }).addTo(window.markerLayer);
-        try { window.currentMarker.setZIndexOffset(9999); } catch { console.warn('Caught error in core.js'); }
+  
+if (!window.currentMarker) {
+  window.currentMarker = L.marker([lat, lng], {
+    icon: myLocIcon,
+    draggable: !!(window.markerSettings && window.markerSettings.allowDrag)
+  }).addTo(window.markerLayer);
 
-      } else {
-        window.currentMarker.setLatLng([lat, lng]);
-        try { window.currentMarker.setZIndexOffset(9999); } catch { console.warn('Caught error in core.js'); }
-      }
+  try { window.currentMarker.setZIndexOffset(9999); } catch {}
+
+  // Αν αρχίσεις drag → κλειδώνει (σταματά να παίρνει updates από GPS)
+  try {
+    window.currentMarker.on('dragstart', () => {
+      window.lockCurrentLoc = true;
+      try { setFollow(false); } catch {}
+    });
+  } catch {}
+} else {
+  // ΜΗΝ μετακινείς από GPS αν είναι κλειδωμένος
+  if (!window.lockCurrentLoc) {
+    window.currentMarker.setLatLng([lat, lng]);
+  }
+  try { window.currentMarker.setZIndexOffset(9999); } catch {}
+}
+
 
       // Κύκλος ακρίβειας (με “κόφτη”)
       const r = Math.min(accuracy, ACC_RADIUS_CAP);
@@ -764,7 +797,9 @@ function openDamageModal(category){
     alert('Δώσε όνομα κατηγορίας.');
     return;
   }
-
+if (typeof window !== 'undefined' && typeof window.openDamageModal !== 'function') {
+  window.openDamageModal = openDamageModal;
+}
   // ΝΕΟ: Επιλογή σημείου: GPS αν υπάρχει, αλλιώς το κέντρο χάρτη
   let latlng = null;
   try{
@@ -1143,13 +1178,22 @@ window.refreshCategoryChecklist = buildCategoryChecklist;
     });
   }
 
-  if(dragCb){
-    dragCb.checked = window.markerSettings.allowDrag;
-    dragCb.addEventListener('change', e=>{
-      window.markerSettings.allowDrag = !!e.target.checked;
-      (window.damageMarkers || []).forEach(window.applyDragMode);
-    });
-  }
+ if(dragCb){
+  dragCb.checked = window.markerSettings.allowDrag;
+  dragCb.addEventListener('change', e=>{
+    window.markerSettings.allowDrag = !!e.target.checked;
+    (window.damageMarkers || []).forEach(window.applyDragMode);
+
+    // + Εφάρμοσε drag και στον currentMarker
+    try {
+      if (window.currentMarker) {
+        if (window.markerSettings.allowDrag) window.currentMarker.dragging?.enable();
+        else window.currentMarker.dragging?.disable();
+      }
+    } catch {}
+  });
+}
+
 
   // Φτιάξε τα checkboxes κατηγοριών
   buildCategoryChecklist();
