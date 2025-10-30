@@ -1089,7 +1089,7 @@ function openDamageModalUI(){
   document.getElementById('damageModal')?.classList.add('show');
 }
 
-window.openDamageModal = window.openDamageModal || openDamageModal;
+
 // === Custom Name Modal wiring (append at end of ui.js) ===
 (function(){
   function openCustomNameModal(){
@@ -1231,6 +1231,9 @@ window.openDamageModal = window.openDamageModal || openDamageModal;
     if (typeof window.buildPopupHTML === 'function'){  // υπάρχει στο ui.js
       try { html = window.buildPopupHTML(rec); } catch(e){}
     }
+	// Κράτα ενημερωμένες τις συντεταγμένες & σώζε μετά από drag
+try { if (typeof window.wireDragPersist === 'function') window.wireDragPersist(m); } catch {}
+
     if (!html){
       html = `<div class="card"><div class="card__body">
                 <div class="title">${rec.seqLabel}</div>
