@@ -76,6 +76,15 @@
       <button id="btnMarkerSettings" class="btn btn--icon" type="button" title="Ρυθμίσεις Markers">⚙️</button>
     </div>
   </div>
+<!-- ⬇️ ΤΟΠΟΘΕΤΗΣΕ ΤΟ ΑΜΕΣΩΣ ΜΕΤΑ ΤΟ </div> ΤΗΣ .top-buttons -->
+<div id="modeBar" style="position:absolute; z-index:9999; top:56px; right:10px;
+  background:#ffffff; padding:6px 10px; border-radius:8px;
+  box-shadow:0 2px 8px rgba(0,0,0,.12); font-size:14px; line-height:1;">
+  <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+    <input type="checkbox" id="drivingMode" checked/>
+    <span>Οδήγηση (map-matching)</span>
+  </label>
+</div>
 
   <!-- ===================== DATA MENU (Exports / Imports) ===================== -->
   <div id="dataMenu" class="data-menu" role="dialog" aria-modal="true">
@@ -518,10 +527,7 @@
     <!-- ===== Libs (όλα με defer) ===== -->
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <!-- ✅ Προσθήκη plugin για περιστροφή χάρτη -->
-<!-- ✅ Leaflet Rotate (με TouchRotate handler) -->
-<script defer src="https://unpkg.com/leaflet-rotate@0.2.0/dist/leaflet-rotate.min.js"
-  onerror="var s=document.createElement('script');s.defer=true;s.src='https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.0/dist/leaflet-rotate.min.js';document.head.appendChild(s)">
-</script>
+
 
 
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -541,6 +547,34 @@
 
 <!-- ✅ KMZ layer ΠΑΝΤΑ ΤΕΛΕΥΤΑΙΟ & με defer (ΑΛΛΑΓΗ) -->
 <script defer src="kmz_layer.js"></script>
+<!-- ⬇️ ΒΑΛ'ΤΟ ΑΜΕΣΩΣ ΚΑΤΩ ΑΠΟ ΤΟ <script defer src="kmz_layer.js"></script> -->
+<script type="module">
+  // 1) Φόρτωση modules (πρέπει να έχεις δημιουργήσει: /geo/location.js και /geo/mapmatch.osrm.js)
+  import { initGeo } from './location.js';
+  import { createOSRMMatcher } from './mapmatch.osrm.js';
+
+  // 2) Εκκίνηση γεωεντοπισμού (γρήγορο warmup + iOS permission μετά από gesture)
+  window.Geo = await initGeo({ warmup: true, askPermissionOnGesture: true });
+
+  // 3) Δημιουργία OSRM matcher (δοκιμαστικά με public endpoint)
+  window.OSRM = createOSRMMatcher({
+    baseUrl: 'https://router.project-osrm.org', // αλλάζει εύκολα αργότερα σε δικό σου server
+    minAccuracy: 60, // μην κάνεις snap αν το GPS είναι χειρότερο από 60 m
+    minSpeed: 3,     // μην κάνεις snap αν πας πιο αργά από ~11 km/h (πεζός)
+    rateMs: 1000     // 1 κλήση/δευτερόλεπτο προς OSRM
+  });
+
+  // 4) Στείλε event όταν ο χρήστης ανοίγει/κλείνει το map-matching
+  const drivingEl = document.getElementById('drivingMode');
+  if (drivingEl) {
+    // αρχική εκπομπή για να μάθει το core την τρέχουσα κατάσταση
+    window.dispatchEvent(new CustomEvent('mode:driving', { detail: { enabled: drivingEl.checked }}));
+    // μεταβολές από το checkbox
+    drivingEl.addEventListener('change', () => {
+      window.dispatchEvent(new CustomEvent('mode:driving', { detail: { enabled: drivingEl.checked }}));
+    });
+  }
+</script>
 
 
 </body>
