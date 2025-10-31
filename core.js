@@ -704,6 +704,11 @@ const myLocIcon = L.divIcon({
   iconAnchor: [9, 9]           // κεντράρισμα στο σημείο
 });
 
+// --- Driving mode flag (έρχεται από το checkbox του index.html) ---
+if (typeof window.driving === 'undefined') window.driving = true;
+window.addEventListener('mode:driving', (e) => {
+  window.driving = !!(e?.detail?.enabled);
+});
 
 function requestLocation() {
   if (!('geolocation' in navigator)) {
@@ -717,37 +722,62 @@ function requestLocation() {
     window.watchId = null;
   }
 
+  // 👇 async callback για να μπορούμε να περιμένουμε OSRM
   window.watchId = navigator.geolocation.watchPosition(
-    (pos) => {
-      const { latitude: lat, longitude: lng, accuracy = 0 } = pos.coords;
+    async (pos) => {
+      const { latitude: lat, longitude: lng, accuracy = 0, speed = null, heading = null } = pos.coords;
 
-      // Δημιούργησε ή ενημέρωσε τον marker τρέχουσας θέσης
-  
-if (!window.currentMarker) {
-  window.currentMarker = L.marker([lat, lng], {
-    icon: myLocIcon,
-    draggable: !!(window.markerSettings && window.markerSettings.allowDrag)
-  }).addTo(window.markerLayer);
+      // --- 1) Δημιούργησε raw fix + meta και δημοσίευσέ το
+      const fix  = { lat, lon: lng, accuracy, timestamp: pos.timestamp };
+      const meta = { speed, heading };
+      try { window.dispatchEvent(new CustomEvent('geo:fix', { detail: { fix, meta } })); } catch {}
 
-  try { window.currentMarker.setZIndexOffset(9999); } catch {}
+      // --- 2) Προσπάθησε για OSRM map-matching (μόνο σε οδήγηση)
+      let targetLat = lat, targetLng = lng, snapped = false;
+      const accOK = (accuracy <= 60);             // ίδιο threshold με το matcher
+      const spdOK = (speed == null || speed >= 3); // αποδέξου null ή ≥3 m/s
 
-  // Αν αρχίσεις drag → κλειδώνει (σταματά να παίρνει updates από GPS)
-  try {
-    window.currentMarker.on('dragstart', () => {
-      window.lockCurrentLoc = true;
-      try { setFollow(false); } catch {}
-    });
-  } catch {}
-} else {
-  // ΜΗΝ μετακινείς από GPS αν είναι κλειδωμένος
-  if (!window.lockCurrentLoc) {
-    window.currentMarker.setLatLng([lat, lng]);
-  }
-  try { window.currentMarker.setZIndexOffset(9999); } catch {}
-}
+      if (window.driving && window.OSRM && accOK && spdOK) {
+        try {
+          const mm = await window.OSRM.match({ ...fix, speed, heading });
+          if (mm && typeof mm.lat === 'number' && typeof mm.lon === 'number' && mm.snapped) {
+            targetLat = mm.lat; targetLng = mm.lon; snapped = true;
+          }
+          // ενημέρωσε και το κανάλι mm (UI/diagnostics)
+          try {
+            window.dispatchEvent(new CustomEvent('geo:mmfix', {
+              detail: { fix: (mm || { lat: targetLat, lon: targetLng, snapped }), raw: fix }
+            }));
+          } catch {}
+        } catch (e) {
+          // αθόρυβα fallback σε raw
+        }
+      }
 
+      // --- 3) Δημιούργησε/Ενημέρωσε τον marker στη στόχευση (snapped όταν υπάρχει)
+      if (!window.currentMarker) {
+        window.currentMarker = L.marker([targetLat, targetLng], {
+          icon: myLocIcon,
+          draggable: !!(window.markerSettings && window.markerSettings.allowDrag)
+        }).addTo(window.markerLayer);
+        try { window.currentMarker.setZIndexOffset(9999); } catch {}
 
-      // Κύκλος ακρίβειας (με “κόφτη”)
+        // Αν αρχίσεις drag → κλειδώνει (σταματά να παίρνει updates από GPS)
+        try {
+          window.currentMarker.on('dragstart', () => {
+            window.lockCurrentLoc = true;
+            try { setFollow(false); } catch {}
+          });
+        } catch {}
+      } else {
+        // ΜΗΝ μετακινείς από GPS αν είναι κλειδωμένος
+        if (!window.lockCurrentLoc) {
+          window.currentMarker.setLatLng([targetLat, targetLng]);
+        }
+        try { window.currentMarker.setZIndexOffset(9999); } catch {}
+      }
+
+      // --- 4) Κύκλος ακρίβειας: ΠΑΝΤΑ πάνω στο raw GPS
       const r = Math.min(accuracy, ACC_RADIUS_CAP);
       if (!accuracyCircle) {
         accuracyCircle = L.circle([lat, lng], {
@@ -764,16 +794,14 @@ if (!window.currentMarker) {
         accuracyCircle.setRadius(r);
       }
 
-      // Κεντράρισμα / Follow
+      // --- 5) Κεντράρισμα / Follow: χρησιμοποίησε το target (snapped αν υπάρχει)
       if (window.firstLocate) {
         window.firstLocate = false;
         try {
-  window.map.setView([lat, lng], window.map.getZoom() || 16, { animate: true });
-} catch { console.warn('Caught error in core.js'); }
-
+          window.map.setView([targetLat, targetLng], window.map.getZoom() || 16, { animate: true });
+        } catch { console.warn('Caught error in core.js'); }
       } else if (window.followUser) {
-        // πιο «μαλακό» από setView, δεν αλλάζει zoom
-        window.map.panTo([lat, lng], { animate: true });
+        try { window.map.panTo([targetLat, targetLng], { animate: true }); } catch {}
       }
     },
     (err) => {
@@ -782,8 +810,8 @@ if (!window.currentMarker) {
     },
     {
       enableHighAccuracy: true,
-      timeout: 10000,   // απόφυγε ατέρμονη αναμονή
-      maximumAge: 1000  // αποδέξου πολύ φρέσκο cached fix (≤1s)
+      timeout: 10000,
+      maximumAge: 1000
     }
   );
 }
@@ -977,7 +1005,10 @@ function resetAll(){
 document.addEventListener('DOMContentLoaded', async () => {
   // Service Worker (προαιρετικό log αν αποτύχει)
   if ('serviceWorker' in navigator) {
-    try { await navigator.serviceWorker.register('service-worker.js'); } catch { console.warn('Caught error in core.js'); }
+    try { await navigator.serviceWorker.register('service-worker.js'); } catch (e) {
+  console.error('core.js error:', e && e.message ? e.message : e);
+  if (e && e.stack) console.error(e.stack);
+}
   }
 
   // ===== Marker Settings — INIT =====
